@@ -48,5 +48,11 @@ function showToast(message) {
   toastTimer = setTimeout(() => toast.classList.remove("show"), 2800);
 }
 document.querySelectorAll(".view-property").forEach(button => button.addEventListener("click", () => {
-  showToast(`${button.dataset.property} — property details can be connected here.`);
+  if (button.dataset.property === "Cebu Skyline Townhouse") window.location.href = "property.html";
+  else showToast(`${button.dataset.property} — its detail page can be added next.`);
 }));
+
+
+// Property page auction countdown (only runs when the countdown element exists).
+let seconds=3*86400+5*3600+18*60;const timer=document.getElementById('countdown');function tick(){if(!timer)return;const d=Math.floor(seconds/86400),h=Math.floor(seconds%86400/3600),m=Math.floor(seconds%3600/60);timer.textContent=`${String(d).padStart(2,'0')}d : ${String(h).padStart(2,'0')}h : ${String(m).padStart(2,'0')}m`;if(seconds>0)seconds--}tick();setInterval(tick,60000);
+
