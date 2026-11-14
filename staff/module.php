@@ -77,7 +77,7 @@ try {
  switch ($module) {
   case 'approvals':
    $stats=[['Pending approvals',(int)$pdo->query('SELECT COUNT(*) FROM properties WHERE is_approved=0')->fetchColumn()],['Approved listings',(int)$pdo->query('SELECT COUNT(*) FROM properties WHERE is_approved=1')->fetchColumn()],['Properties total',(int)$pdo->query('SELECT COUNT(*) FROM properties')->fetchColumn()]];
-   $rows=$pdo->query("SELECT p.id,p.title,p.location,p.price,p.status,p.created_at,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 ORDER BY p.created_at ASC")->fetchAll();
+   $rows=$pdo->query("SELECT p.id,p.title,p.location,p.price,p.status,p.is_approved,p.created_at,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 ORDER BY p.created_at ASC")->fetchAll();
    $columns=['id'=>'ID','title'=>'Property','username'=>'Submitted by','email'=>'Email','location'=>'Location','price'=>'Price','created_at'=>'Submitted'];
    break;
   case 'properties':
