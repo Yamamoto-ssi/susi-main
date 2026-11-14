@@ -113,8 +113,14 @@
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <button class="modal-close" id="modalClose" aria-label="Close dialog">×</button>
       <p class="eyebrow">WELCOME TO HOMEBID</p><h2 id="modalTitle">Create your account</h2><p class="muted" id="modalDescription">Join HomeBid and discover your next home.</p>
-      <form id="accountForm"><label>Full name<input type="text" name="name" placeholder="Your name" required></label><label>Email address<input type="email" name="email" placeholder="you@example.com" required></label><label>Password<input type="password" name="password" placeholder="At least 8 characters" minlength="8" required></label><button class="btn btn-gold form-submit" type="submit">Create Account</button></form>
-      <p class="form-message" id="formMessage" role="status"></p>
+      <form id="accountForm" novalidate>
+        <label id="nameField">Full name<input type="text" name="name" placeholder="Your full name" autocomplete="name"></label>
+        <label>Email address<input type="email" name="email" placeholder="you@example.com" autocomplete="email" required></label>
+        <label>Password<input type="password" name="password" placeholder="Enter your password" autocomplete="current-password" required></label>
+        <button class="btn btn-gold form-submit" type="submit">Create Account</button>
+      </form>
+      <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
+      <p class="auth-switch" id="authSwitch">Already have an account? <button type="button" data-modal="login">Log in</button></p>
     </section>
   </div>
   <div class="toast" id="toast" role="status"></div>
