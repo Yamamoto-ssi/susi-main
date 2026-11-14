@@ -4,23 +4,28 @@ require_once __DIR__.'/../config/auth.php';
 $staffId=require_roles(['Staff','Administrator']);
 require_once __DIR__.'/../config/db.php';
 $message='';
+$error='';
 if($_SERVER['REQUEST_METHOD']==='POST'){
  verify_csrf();
  $id=filter_input(INPUT_POST,'property_id',FILTER_VALIDATE_INT);
  $decision=$_POST['decision']??'';
- if($id&&$decision==='approve'){
-  $approved=1;
-  $q=$pdo->prepare('UPDATE properties SET is_approved=? WHERE id=?');$q->execute([$approved,$id]);
+ if($id && $decision==='approve'){
+  $q=$pdo->prepare('UPDATE properties SET is_approved=1 WHERE id=? AND is_approved=0');
+  $q->execute([$id]);
   if($q->rowCount()){
    $log=$pdo->prepare('INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)');
    $log->execute([$staffId,'Approved property listing','property',$id,$_SERVER['REMOTE_ADDR']??null]);
-  }
-  $message=$q->rowCount()?'Review decision saved.':'No change was made to that listing.';
+   $message='Property approved successfully.';
+  } else { $error='This listing was already reviewed or could not be found.'; }
  }
 }
-$counts=$pdo->query('SELECT COUNT(*) total,COALESCE(SUM(is_approved=0),0) pending,COALESCE(SUM(is_approved=1),0) approved FROM properties')->fetch();
+$counts=$pdo->query("SELECT COUNT(*) total,COALESCE(SUM(is_approved=0),0) pending,COALESCE(SUM(is_approved=1),0) approved,COALESCE(SUM(status='Sold'),0) sold FROM properties")->fetch();
+$auctionCounts=$pdo->query("SELECT COUNT(*) total,COALESCE(SUM(status='active'),0) active FROM auctions")->fetch();
+$bidCount=(int)$pdo->query('SELECT COUNT(*) FROM bids')->fetchColumn();
 $pending=$pdo->query('SELECT p.*,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 ORDER BY p.created_at ASC')->fetchAll();
 $recent=$pdo->query('SELECT p.*,u.username FROM properties p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 12')->fetchAll();
+$auctions=$pdo->query('SELECT a.*,p.title FROM auctions a JOIN properties p ON p.id=a.property_id ORDER BY a.created_at DESC LIMIT 12')->fetchAll();
+$logs=$pdo->query('SELECT l.*,u.username FROM activity_logs l LEFT JOIN users u ON u.id=l.user_id ORDER BY l.created_at DESC LIMIT 12')->fetchAll();
 function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
 ?>
 <!doctype html>
@@ -121,6 +126,10 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
         color: #991b1b
     }
 
+    .hb-error { background:#fef2f2; color:#991b1b; padding:12px; border-radius:8px; margin:16px 0 }
+    .hb-nav { display:flex; flex-wrap:wrap; gap:8px; margin:22px 0 }
+    .hb-nav a { padding:9px 13px; border-radius:8px; background:#e8edf5; color:#24334d; font-weight:700; text-decoration:none; font-size:13px }
+    .hb-nav a:hover { background:#dbe4f0 }
     .hb-msg {
         background: #ecfdf5;
         padding: 12px;
@@ -153,7 +162,9 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
                         value="<?=sh(csrf_token())?>"><button class="hb-btn hb-no" type="submit">Log out</button></form>
             </div>
         </header>
+        <nav class="hb-nav"><a href="#approvals">Pending approvals</a><a href="#listings">All listings</a><a href="#auctions">Auction monitoring</a><a href="#activity">Activity logs</a></nav>
         <?php if($message):?><p class="hb-msg"><?=sh($message)?></p><?php endif;?>
+        <?php if($error):?><p class="hb-error"><?=sh($error)?></p><?php endif;?>
         <div class="hb-stats">
             <section class="hb-card"><small>Total properties</small>
                 <div class="hb-num"><?=(int)$counts['total']?></div>
@@ -164,8 +175,11 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
             <section class="hb-card"><small>Approved listings</small>
                 <div class="hb-num"><?=(int)$counts['approved']?></div>
             </section>
+            <section class="hb-card"><small>Active auctions</small><div class="hb-num"><?=(int)$auctionCounts['active']?></div></section>
+            <section class="hb-card"><small>Total bids placed</small><div class="hb-num"><?=$bidCount?></div></section>
+            <section class="hb-card"><small>Sold properties</small><div class="hb-num"><?=(int)$counts['sold']?></div></section>
         </div>
-        <section class="hb-card">
+        <section class="hb-card" id="approvals">
             <h2>Pending property approvals</h2>
             <div class="hb-scroll">
                 <table class="hb-table">
@@ -197,7 +211,7 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
                 </table>
             </div>
         </section>
-        <section class="hb-card">
+        <section class="hb-card" id="listings">
             <h2>Recent listings</h2>
             <div class="hb-scroll">
                 <table class="hb-table">
@@ -221,6 +235,23 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
                         </tr><?php endforeach;?></tbody>
                 </table>
             </div>
+        </section>
+        <section class="hb-card" id="auctions">
+            <h2>Auction monitoring</h2>
+            <p class="hb-sub">Latest auctions and their current bidding status.</p>
+            <div class="hb-scroll"><table class="hb-table">
+                <thead><tr><th>PROPERTY</th><th>STARTING BID</th><th>CURRENT BID</th><th>STARTS</th><th>ENDS</th><th>STATUS</th></tr></thead>
+                <tbody><?php if(!$auctions):?><tr><td colspan="6">No auctions have been created yet.</td></tr><?php endif;?>
+                <?php foreach($auctions as $a):?><tr><td><?=sh($a['title'])?></td><td>₱<?=number_format((float)$a['starting_bid'],2)?></td><td>₱<?=number_format((float)$a['current_bid'],2)?></td><td><?=sh($a['start_time'])?></td><td><?=sh($a['end_time'])?></td><td><?=sh(ucfirst((string)$a['status']))?></td></tr><?php endforeach;?></tbody>
+            </table></div>
+        </section>
+        <section class="hb-card" id="activity">
+            <h2>Recent staff activity</h2>
+            <div class="hb-scroll"><table class="hb-table">
+                <thead><tr><th>STAFF MEMBER</th><th>ACTION</th><th>RECORD</th><th>DATE</th></tr></thead>
+                <tbody><?php if(!$logs):?><tr><td colspan="4">No activity has been recorded yet.</td></tr><?php endif;?>
+                <?php foreach($logs as $log):?><tr><td><?=sh($log['username']?:'System')?></td><td><?=sh($log['action'])?></td><td><?=sh($log['entity_type'])?> #<?=(int)$log['record_id']?></td><td><?=sh($log['created_at'])?></td></tr><?php endforeach;?></tbody>
+            </table></div>
         </section>
     </main>
 </body>
