@@ -27,16 +27,321 @@ $q->execute([$userId]); $viewings=$q->fetchAll();
 $q=$pdo->prepare("SELECT username,role FROM users WHERE id=?"); $q->execute([$userId]); $account=$q->fetch()?:['username'=>'Account','role'=>'Buyer'];
 function money($n){return '₱'.number_format((float)$n,2);}
 ?>
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HomeBid Seller Dashboard</title><link rel="stylesheet" href="styles.css">
-<style>
-.dash-main{height:100vh;overflow:auto;flex:1;padding:28px clamp(16px,3vw,42px)}.dash-wrap{max-width:1400px;margin:auto}.dash-top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:24px}.dash-top h1{font-size:26px}.muted2{color:#64748b;margin-top:5px}.dash-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:20px 0}.dash-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px;min-width:0;margin-bottom:18px}.dash-card small{color:#64748b}.dash-card strong.num{display:block;font-size:26px;margin-top:8px}.dash-section h2{font-size:18px;margin-bottom:12px}.dash-table{width:100%;border-collapse:collapse}.dash-table th,.dash-table td{text-align:left;padding:12px;border-bottom:1px solid #e2e8f0;font-size:13px}.dash-table th{color:#64748b;font-size:11px}.dash-scroll{overflow:auto}.dash-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.dash-form label{display:grid;gap:6px;font-weight:600}.dash-form input,.dash-form textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.dash-form .wide{grid-column:1/-1}.dash-btn{border:0;border-radius:8px;background:#b7791f;color:#fff;padding:11px 16px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}.dash-alert{padding:12px;border-radius:8px;margin:12px 0;background:#ecfdf5;color:#166534}.dash-error{background:#fef2f2;color:#991b1b}.pill2{padding:4px 8px;border-radius:20px;background:#fef3c7;color:#92400e;font-size:11px}.pill2.ok{background:#dcfce7;color:#166534}@media(max-width:850px){.dash-grid{grid-template-columns:repeat(2,1fr)}.dash-form{grid-template-columns:1fr}.dash-main{height:auto;min-height:100vh}.dash-table{min-width:650px}}
-</style></head><body>
-<aside class="side"><div class="logo"><span class="mk"><i></i></span><div><b>HOME<span>BID</span></b><small>SELLER PORTAL</small></div></div><div class="cap">ACCOUNT</div><div class="ws"><div class="av"><?=strtoupper(substr(h($account['username']),0,2))?></div><div><b><?=h($account['username'])?></b><small><?=h($account['role'])?></small></div></div><div class="cap">MENU</div><nav class="nav"><a href="#overview">Overview</a><a href="#properties">My Properties</a><a href="#submit">Submit Property</a><a href="#auctions">My Auctions</a><a href="#viewings">Viewing Requests</a><a href="../index.php">HomeBid Home</a><form method="post" action="../logout.php" style="margin:12px 0"><input type="hidden" name="csrf_token" value="<?=h(csrf_token())?>"><button type="submit" class="dash-btn" style="width:100%">Log out</button></form></nav></aside>
-<main class="dash-main"><div class="dash-wrap"><header class="dash-top" id="overview"><div><h1>Welcome, <?=h($account['username'])?></h1><p class="muted2">Manage your property listings and auction activity.</p></div><a class="dash-btn" href="#submit">+ Add Property</a></header>
-<?php if($notice):?><div class="dash-alert"><?=h($notice)?></div><?php endif;?><?php if($error):?><div class="dash-alert dash-error"><?=h($error)?></div><?php endif;?>
-<div class="dash-grid"><div class="dash-card"><small>Total properties</small><strong class="num"><?=(int)$stats['total']?></strong></div><div class="dash-card"><small>Awaiting approval</small><strong class="num"><?=(int)$stats['pending']?></strong></div><div class="dash-card"><small>Approved listings</small><strong class="num"><?=(int)$stats['approved']?></strong></div><div class="dash-card"><small>Sold properties</small><strong class="num"><?=(int)$stats['sold']?></strong></div></div>
-<section class="dash-section" id="submit"><div class="dash-card"><h2>Submit a property</h2><p class="muted2">New listings are connected to your signed-in account and require staff approval.</p><form method="post" class="dash-form"><input type="hidden" name="csrf_token" value="<?=h(csrf_token())?>"><label>Property title<input name="title" maxlength="150" required></label><label>Location<input name="location" maxlength="255" placeholder="City, Province" required></label><label>Lot area (m²)<input name="lot_area" type="number" min="0.01" step="0.01" required></label><label>Floor area (m²)<input name="floor_area" type="number" min="0.01" step="0.01" required></label><label>Starting price (₱)<input name="price" type="number" min="0.01" step="0.01" required></label><label class="wide">Description<textarea name="description" rows="4" required></textarea></label><div class="wide"><button class="dash-btn" type="submit">Submit for approval</button></div></form></div></section>
-<section class="dash-section" id="properties"><h2>My properties</h2><div class="dash-card dash-scroll"><table class="dash-table"><thead><tr><th>PROPERTY</th><th>LOCATION</th><th>PRICE</th><th>LISTING STATUS</th><th>APPROVAL</th><th>BIDS</th><th>ADDED</th></tr></thead><tbody><?php if(!$properties):?><tr><td colspan="7">No listings yet. Submit your first property above.</td></tr><?php endif;?><?php foreach($properties as $p):?><tr><td><b><?=h($p['title'])?></b></td><td><?=h($p['location'])?></td><td><?=money($p['price'])?></td><td><?=h($p['status'])?></td><td><span class="pill2 <?=$p['is_approved']?'ok':''?>"><?=$p['is_approved']?'Approved':'Pending'?></span></td><td><?=(int)$p['bid_count']?></td><td><?=h(date('M j, Y',strtotime($p['created_at'])))?></td></tr><?php endforeach;?></tbody></table></div></section>
-<section class="dash-section" id="auctions"><h2>My auctions</h2><div class="dash-card dash-scroll"><table class="dash-table"><thead><tr><th>PROPERTY</th><th>STARTING BID</th><th>CURRENT BID</th><th>STARTS</th><th>ENDS</th><th>STATUS</th></tr></thead><tbody><?php if(!$auctions):?><tr><td colspan="6">No auctions are linked to your listings yet.</td></tr><?php endif;?><?php foreach($auctions as $a):?><tr><td><?=h($a['title'])?></td><td><?=money($a['starting_bid'])?></td><td><?=money($a['current_bid'])?></td><td><?=h($a['start_time'])?></td><td><?=h($a['end_time'])?></td><td><?=h(ucfirst($a['status']))?></td></tr><?php endforeach;?></tbody></table></div></section>
-<section class="dash-section" id="viewings"><h2>Viewing requests</h2><div class="dash-card dash-scroll"><table class="dash-table"><thead><tr><th>PROPERTY</th><th>SCHEDULE</th><th>STATUS</th><th>REQUESTED</th></tr></thead><tbody><?php if(!$viewings):?><tr><td colspan="4">No viewing requests for your properties.</td></tr><?php endif;?><?php foreach($viewings as $v):?><tr><td><?=h($v['title'])?></td><td><?=h($v['scheduled_date'])?></td><td><?=h($v['status'])?></td><td><?=h($v['created_at'])?></td></tr><?php endforeach;?></tbody></table></div></section>
-</div></main></body></html>
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>HomeBid Seller Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+    .dash-main {
+        height: 100vh;
+        overflow: auto;
+        flex: 1;
+        padding: 28px clamp(16px, 3vw, 42px)
+    }
+
+    .dash-wrap {
+        max-width: 1400px;
+        margin: auto
+    }
+
+    .dash-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px
+    }
+
+    .dash-top h1 {
+        font-size: 26px
+    }
+
+    .muted2 {
+        color: #64748b;
+        margin-top: 5px
+    }
+
+    .dash-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin: 20px 0
+    }
+
+    .dash-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 18px;
+        min-width: 0;
+        margin-bottom: 18px
+    }
+
+    .dash-card small {
+        color: #64748b
+    }
+
+    .dash-card strong.num {
+        display: block;
+        font-size: 26px;
+        margin-top: 8px
+    }
+
+    .dash-section h2 {
+        font-size: 18px;
+        margin-bottom: 12px
+    }
+
+    .dash-table {
+        width: 100%;
+        border-collapse: collapse
+    }
+
+    .dash-table th,
+    .dash-table td {
+        text-align: left;
+        padding: 12px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 13px
+    }
+
+    .dash-table th {
+        color: #64748b;
+        font-size: 11px
+    }
+
+    .dash-scroll {
+        overflow: auto
+    }
+
+    .dash-form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px
+    }
+
+    .dash-form label {
+        display: grid;
+        gap: 6px;
+        font-weight: 600
+    }
+
+    .dash-form input,
+    .dash-form textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font: inherit
+    }
+
+    .dash-form .wide {
+        grid-column: 1/-1
+    }
+
+    .dash-btn {
+        border: 0;
+        border-radius: 8px;
+        background: #b7791f;
+        color: #fff;
+        padding: 11px 16px;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block
+    }
+
+    .dash-alert {
+        padding: 12px;
+        border-radius: 8px;
+        margin: 12px 0;
+        background: #ecfdf5;
+        color: #166534
+    }
+
+    .dash-error {
+        background: #fef2f2;
+        color: #991b1b
+    }
+
+    .pill2 {
+        padding: 4px 8px;
+        border-radius: 20px;
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 11px
+    }
+
+    .pill2.ok {
+        background: #dcfce7;
+        color: #166534
+    }
+
+    @media(max-width:850px) {
+        .dash-grid {
+            grid-template-columns: repeat(2, 1fr)
+        }
+
+        .dash-form {
+            grid-template-columns: 1fr
+        }
+
+        .dash-main {
+            height: auto;
+            min-height: 100vh
+        }
+
+        .dash-table {
+            min-width: 650px
+        }
+    }
+    </style>
+</head>
+
+<body>
+    <aside class="side">
+        <div class="logo"><span class="mk"><i></i></span>
+            <div><b>HOME<span>BID</span></b><small>SELLER PORTAL</small></div>
+        </div>
+        <div class="cap">ACCOUNT</div>
+        <div class="ws">
+            <div class="av"><?=strtoupper(substr(h($account['username']),0,2))?></div>
+            <div><b><?=h($account['username'])?></b><small><?=h($account['role'])?></small></div>
+        </div>
+        <div class="cap">MENU</div>
+        <nav class="nav"><a href="#overview">Overview</a><a href="#properties">My Properties</a><a href="#submit">Submit
+                Property</a><a href="#auctions">My Auctions</a><a href="#viewings">Viewing Requests</a><a
+                href="../index.php">HomeBid Home</a>
+            <form method="post" action="../logout.php" style="margin:12px 0"><input type="hidden" name="csrf_token"
+                    value="<?=h(csrf_token())?>"><button type="submit" class="dash-btn" style="width:100%">Log
+                    out</button></form>
+        </nav>
+    </aside>
+    <main class="dash-main">
+        <div class="dash-wrap">
+            <header class="dash-top" id="overview">
+                <div>
+                    <h1>Welcome, <?=h($account['username'])?></h1>
+                    <p class="muted2">Manage your property listings and auction activity.</p>
+                </div><a class="dash-btn" href="#submit">+ Add Property</a>
+            </header>
+            <?php if($notice):?><div class="dash-alert"><?=h($notice)?></div><?php endif;?><?php if($error):?><div
+                class="dash-alert dash-error"><?=h($error)?></div><?php endif;?>
+            <div class="dash-grid">
+                <div class="dash-card"><small>Total properties</small><strong
+                        class="num"><?=(int)$stats['total']?></strong></div>
+                <div class="dash-card"><small>Awaiting approval</small><strong
+                        class="num"><?=(int)$stats['pending']?></strong></div>
+                <div class="dash-card"><small>Approved listings</small><strong
+                        class="num"><?=(int)$stats['approved']?></strong></div>
+                <div class="dash-card"><small>Sold properties</small><strong
+                        class="num"><?=(int)$stats['sold']?></strong></div>
+            </div>
+            <section class="dash-section" id="submit">
+                <div class="dash-card">
+                    <h2>Submit a property</h2>
+                    <p class="muted2">New listings are connected to your signed-in account and require staff approval.
+                    </p>
+                    <form method="post" class="dash-form"><input type="hidden" name="csrf_token"
+                            value="<?=h(csrf_token())?>"><label>Property title<input name="title" maxlength="150"
+                                required></label><label>Location<input name="location" maxlength="255"
+                                placeholder="City, Province" required></label><label>Lot area (m²)<input name="lot_area"
+                                type="number" min="0.01" step="0.01" required></label><label>Floor area (m²)<input
+                                name="floor_area" type="number" min="0.01" step="0.01" required></label><label>Starting
+                            price (₱)<input name="price" type="number" min="0.01" step="0.01" required></label><label
+                            class="wide">Description<textarea name="description" rows="4" required></textarea></label>
+                        <div class="wide"><button class="dash-btn" type="submit">Submit for approval</button></div>
+                    </form>
+                </div>
+            </section>
+            <section class="dash-section" id="properties">
+                <h2>My properties</h2>
+                <div class="dash-card dash-scroll">
+                    <table class="dash-table">
+                        <thead>
+                            <tr>
+                                <th>PROPERTY</th>
+                                <th>LOCATION</th>
+                                <th>PRICE</th>
+                                <th>LISTING STATUS</th>
+                                <th>APPROVAL</th>
+                                <th>BIDS</th>
+                                <th>ADDED</th>
+                            </tr>
+                        </thead>
+                        <tbody><?php if(!$properties):?><tr>
+                                <td colspan="7">No listings yet. Submit your first property above.</td>
+                            </tr><?php endif;?><?php foreach($properties as $p):?><tr>
+                                <td><b><?=h($p['title'])?></b></td>
+                                <td><?=h($p['location'])?></td>
+                                <td><?=money($p['price'])?></td>
+                                <td><?=h($p['status'])?></td>
+                                <td><span
+                                        class="pill2 <?=$p['is_approved']?'ok':''?>"><?=$p['is_approved']?'Approved':'Pending'?></span>
+                                </td>
+                                <td><?=(int)$p['bid_count']?></td>
+                                <td><?=h(date('M j, Y',strtotime($p['created_at'])))?></td>
+                            </tr><?php endforeach;?></tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="dash-section" id="auctions">
+                <h2>My auctions</h2>
+                <div class="dash-card dash-scroll">
+                    <table class="dash-table">
+                        <thead>
+                            <tr>
+                                <th>PROPERTY</th>
+                                <th>STARTING BID</th>
+                                <th>CURRENT BID</th>
+                                <th>STARTS</th>
+                                <th>ENDS</th>
+                                <th>STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody><?php if(!$auctions):?><tr>
+                                <td colspan="6">No auctions are linked to your listings yet.</td>
+                            </tr><?php endif;?><?php foreach($auctions as $a):?><tr>
+                                <td><?=h($a['title'])?></td>
+                                <td><?=money($a['starting_bid'])?></td>
+                                <td><?=money($a['current_bid'])?></td>
+                                <td><?=h($a['start_time'])?></td>
+                                <td><?=h($a['end_time'])?></td>
+                                <td><?=h(ucfirst($a['status']))?></td>
+                            </tr><?php endforeach;?></tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="dash-section" id="viewings">
+                <h2>Viewing requests</h2>
+                <div class="dash-card dash-scroll">
+                    <table class="dash-table">
+                        <thead>
+                            <tr>
+                                <th>PROPERTY</th>
+                                <th>SCHEDULE</th>
+                                <th>STATUS</th>
+                                <th>REQUESTED</th>
+                            </tr>
+                        </thead>
+                        <tbody><?php if(!$viewings):?><tr>
+                                <td colspan="4">No viewing requests for your properties.</td>
+                            </tr><?php endif;?><?php foreach($viewings as $v):?><tr>
+                                <td><?=h($v['title'])?></td>
+                                <td><?=h($v['scheduled_date'])?></td>
+                                <td><?=h($v['status'])?></td>
+                                <td><?=h($v['created_at'])?></td>
+                            </tr><?php endforeach;?></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+
+</html>
