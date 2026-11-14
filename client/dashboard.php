@@ -7,13 +7,44 @@ require_once __DIR__.'/../config/db.php';
 $notice=$error='';
 if ($_SERVER['REQUEST_METHOD']==='POST') {
  verify_csrf();
- $title=trim($_POST['title']??''); $description=trim($_POST['description']??''); $location=trim($_POST['location']??'');
- $lot=filter_input(INPUT_POST,'lot_area',FILTER_VALIDATE_FLOAT); $floor=filter_input(INPUT_POST,'floor_area',FILTER_VALIDATE_FLOAT); $price=filter_input(INPUT_POST,'price',FILTER_VALIDATE_FLOAT);
- if($title===''||$description===''||$location===''||!$lot||!$floor||!$price||$lot<=0||$floor<=0||$price<=0) $error='Complete all fields with valid positive area and price values.';
- else {
-  $q=$pdo->prepare("INSERT INTO properties (user_id,title,description,location,lot_area,floor_area,price,status,is_approved) VALUES (?,?,?,?,?,?,?,'Available',0)");
-  $q->execute([$userId,$title,$description,$location,$lot,$floor,$price]);
-  $notice='Property submitted successfully. It is awaiting staff approval.';
+
+ // A property can only be deleted by the account that owns it. Keep listings
+ // that already have auction, bid, or viewing activity so records are not orphaned.
+ if (($_POST['action'] ?? '') === 'delete_property') {
+  $propertyId = filter_input(INPUT_POST, 'property_id', FILTER_VALIDATE_INT);
+  if (!$propertyId || $propertyId <= 0) {
+   $error = 'Invalid property selected.';
+  } else {
+   $q = $pdo->prepare("SELECT id, title FROM properties WHERE id = ? AND user_id = ? LIMIT 1");
+   $q->execute([$propertyId, $userId]);
+   $ownedProperty = $q->fetch();
+   if (!$ownedProperty) {
+    $error = 'That property was not found in your account.';
+   } else {
+    $q = $pdo->prepare("SELECT
+      (SELECT COUNT(*) FROM bids WHERE property_id = ?) AS bid_count,
+      (SELECT COUNT(*) FROM auctions WHERE property_id = ?) AS auction_count,
+      (SELECT COUNT(*) FROM viewing_bookings WHERE property_id = ?) AS viewing_count");
+    $q->execute([$propertyId, $propertyId, $propertyId]);
+    $activity = $q->fetch();
+    if ((int)$activity['bid_count'] > 0 || (int)$activity['auction_count'] > 0 || (int)$activity['viewing_count'] > 0) {
+     $error = 'This property cannot be deleted because it already has auction, bid, or viewing activity.';
+    } else {
+     $q = $pdo->prepare("DELETE FROM properties WHERE id = ? AND user_id = ?");
+     $q->execute([$propertyId, $userId]);
+     $notice = $q->rowCount() ? 'Property deleted successfully.' : 'The property could not be deleted.';
+    }
+   }
+  }
+ } else {
+  $title=trim($_POST['title']??''); $description=trim($_POST['description']??''); $location=trim($_POST['location']??'');
+  $lot=filter_input(INPUT_POST,'lot_area',FILTER_VALIDATE_FLOAT); $floor=filter_input(INPUT_POST,'floor_area',FILTER_VALIDATE_FLOAT); $price=filter_input(INPUT_POST,'price',FILTER_VALIDATE_FLOAT);
+  if($title===''||$description===''||$location===''||!$lot||!$floor||!$price||$lot<=0||$floor<=0||$price<=0) $error='Complete all fields with valid positive area and price values.';
+  else {
+   $q=$pdo->prepare("INSERT INTO properties (user_id,title,description,location,lot_area,floor_area,price,status,is_approved) VALUES (?,?,?,?,?,?,?,'Available',0)");
+   $q->execute([$userId,$title,$description,$location,$lot,$floor,$price]);
+   $notice='Property submitted successfully. It is awaiting staff approval.';
+  }
  }
 }
 $q=$pdo->prepare("SELECT COUNT(*) total, COALESCE(SUM(is_approved=0),0) pending, COALESCE(SUM(is_approved=1),0) approved, COALESCE(SUM(status='Sold'),0) sold FROM properties WHERE user_id=?");
@@ -156,6 +187,17 @@ function money($n){return '₱'.number_format((float)$n,2);}
         display: inline-block
     }
 
+    .delete-property-btn {
+        border: 1px solid #fecaca;
+        border-radius: 7px;
+        background: #fef2f2;
+        color: #b91c1c;
+        padding: 7px 11px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .delete-property-btn:hover { background: #fee2e2; }
     .dash-alert {
         padding: 12px;
         border-radius: 8px;
@@ -272,10 +314,11 @@ function money($n){return '₱'.number_format((float)$n,2);}
                                 <th>APPROVAL</th>
                                 <th>BIDS</th>
                                 <th>ADDED</th>
+                                <th>ACTION</th>
                             </tr>
                         </thead>
                         <tbody><?php if(!$properties):?><tr>
-                                <td colspan="7">No listings yet. Submit your first property above.</td>
+                                <td colspan="8">No listings yet. Submit your first property above.</td>
                             </tr><?php endif;?><?php foreach($properties as $p):?><tr>
                                 <td><b><?=h($p['title'])?></b></td>
                                 <td><?=h($p['location'])?></td>
@@ -286,6 +329,14 @@ function money($n){return '₱'.number_format((float)$n,2);}
                                 </td>
                                 <td><?=(int)$p['bid_count']?></td>
                                 <td><?=h(date('M j, Y',strtotime($p['created_at'])))?></td>
+                                <td>
+                                    <form method="post" onsubmit="return confirm('Delete this property permanently? This cannot be undone.');">
+                                        <input type="hidden" name="csrf_token" value="<?=h(csrf_token())?>">
+                                        <input type="hidden" name="action" value="delete_property">
+                                        <input type="hidden" name="property_id" value="<?=(int)$p['id']?>">
+                                        <button type="submit" class="delete-property-btn">Delete</button>
+                                    </form>
+                                </td>
                             </tr><?php endforeach;?></tbody>
                     </table>
                 </div>
