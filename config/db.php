@@ -23,6 +23,10 @@ try {
     $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (PDOException $e) {
     error_log('HomeBid database connection failed: ' . $e->getMessage());
-    http_response_code(500);
-    exit('Database connection failed. Check config/db.php and confirm that MySQL is running and the house_and_lot_db database has been imported.');
+    if (defined('HOMEBID_ALLOW_OFFLINE_DB') && HOMEBID_ALLOW_OFFLINE_DB) {
+        $pdo = null;
+    } else {
+        http_response_code(500);
+        exit('Database connection failed. Check config/db.php and confirm that MySQL is running and the house_and_lot_db database has been imported.');
+    }
 }
