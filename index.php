@@ -1,3 +1,38 @@
+<?php
+// The public landing page should remain available even when the local database is offline.
+define('HOMEBID_ALLOW_OFFLINE_DB', true);
+require_once __DIR__ . '/config/db.php';
+
+$featuredProperties = [];
+$featuredLoadError = false;
+try {
+    $featuredQuery = $pdo->query("
+        SELECT
+            p.id, p.title, p.location, p.description, p.lot_area, p.floor_area,
+            p.price, p.status, p.is_approved,
+            a.starting_bid, a.current_bid,
+            (SELECT COUNT(*) FROM bids b WHERE b.property_id = p.id) AS bidder_count
+        FROM properties p
+        LEFT JOIN auctions a ON a.id = (
+            SELECT a2.id
+            FROM auctions a2
+            WHERE a2.property_id = p.id
+            ORDER BY a2.id DESC
+            LIMIT 1
+        )
+        WHERE p.is_approved = 1 AND p.status = 'Available'
+        ORDER BY p.created_at DESC, p.id DESC
+        LIMIT 6
+    ");
+    $featuredProperties = $featuredQuery->fetchAll();
+} catch (Throwable $e) {
+    error_log('HomeBid featured properties: ' . $e->getMessage());
+    $featuredLoadError = true;
+}
+function homebid_money($amount): string {
+    return '₱' . number_format((float)$amount, 2);
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -68,59 +103,51 @@
                 <a class="text-link" href="#properties">Browse all properties <span>↗</span></a>
             </div>
             <div class="property-grid">
-                <article class="property-card">
-                    <div class="property-image"><img src="assets/property-alabang.jpg"
-                            alt="Modern villa with garden and pool"><span class="live-tag">● LIVE AUCTION</span><span
-                            class="verified">✓ Verified</span></div>
-                    <div class="property-body">
-                        <h3>The Alabang Modern Villa</h3>
-                        <p class="location">⌖ Alabang, Muntinlupa</p>
-                        <div class="specs"><span>4 beds</span><span>4 baths</span><span>320 m²</span></div>
-                        <div class="price-row">
-                            <div><small>Starting bid</small><strong>₱18,500,000</strong></div>
-                            <div class="current"><small>Current highest bid</small><strong>₱20,250,000</strong></div>
-                        </div>
-                        <div class="card-foot"><span>18 bidders</span><span>Ends in 02h : 14m : 32s</span></div><button
-                            class="btn btn-navy view-property" data-property="The Alabang Modern Villa">View
-                            Property</button>
-                    </div>
-                </article>
-                <article class="property-card">
-                    <div class="property-image"><img src="assets/property-nuvali.jpg"
-                            alt="Contemporary two-storey garden residence"><span class="live-tag">● LIVE
-                            AUCTION</span><span class="verified">✓ Verified</span></div>
-                    <div class="property-body">
-                        <h3>Nuvali Garden Residence</h3>
-                        <p class="location">⌖ Santa Rosa, Laguna</p>
-                        <div class="specs"><span>3 beds</span><span>3 baths</span><span>210 m²</span></div>
-                        <div class="price-row">
-                            <div><small>Starting bid</small><strong>₱8,500,000</strong></div>
-                            <div class="current"><small>Current highest bid</small><strong>₱9,150,000</strong></div>
-                        </div>
-                        <div class="card-foot"><span>12 bidders</span><span>Ends in 01h : 09m : 45s</span></div><button
-                            class="btn btn-navy view-property" data-property="Nuvali Garden Residence">View
-                            Property</button>
-                    </div>
-                </article>
-                <article class="property-card">
-                    <div class="property-image"><img src="assets/property-cebu.jpg"
-                            alt="Contemporary townhouse in Cebu"><span class="live-tag">● LIVE AUCTION</span><span
-                            class="verified">✓ Verified</span></div>
-                    <div class="property-body">
-                        <h3>Cebu Skyline Townhouse</h3>
-                        <p class="location">⌖ Lahug, Cebu City</p>
-                        <div class="specs"><span>3 beds</span><span>2 baths</span><span>165 m²</span></div>
-                        <div class="price-row">
-                            <div><small>Starting bid</small><strong>₱6,200,000</strong></div>
-                            <div class="current"><small>Current highest bid</small><strong>₱6,850,000</strong></div>
-                        </div>
-                        <div class="card-foot"><span>9 bidders</span><span>Ends in 00h : 48m : 06s</span></div><button
-                            class="btn btn-navy view-property" data-property="Cebu Skyline Townhouse">View
-                            Property</button>
-                    </div>
-                </article>
+                <?php if ($featuredProperties): ?>
+                    <?php foreach ($featuredProperties as $property): ?>
+                        <article class="property-card">
+                            <div class="property-image">
+                                <img src="assets/property-alabang.jpg" alt="<?= htmlspecialchars($property['title'], ENT_QUOTES, 'UTF-8') ?>">
+                                <?php if (!empty($property['current_bid'])): ?>
+                                    <span class="live-tag">● LIVE AUCTION</span>
+                                <?php else: ?>
+                                    <span class="live-tag">● AVAILABLE</span>
+                                <?php endif; ?>
+                                <span class="verified">✓ Verified</span>
+                            </div>
+                            <div class="property-body">
+                                <h3><?= htmlspecialchars($property['title'], ENT_QUOTES, 'UTF-8') ?></h3>
+                                <p class="location">⌖ <?= htmlspecialchars($property['location'], ENT_QUOTES, 'UTF-8') ?></p>
+                                <div class="specs">
+                                    <span><?= number_format((float)$property['lot_area'], 0) ?> m² lot</span>
+                                    <span><?= number_format((float)$property['floor_area'], 0) ?> m² floor</span>
+                                </div>
+                                <div class="price-row">
+                                    <div>
+                                        <small>Starting price</small>
+                                        <strong><?= homebid_money($property['starting_bid'] ?? $property['price']) ?></strong>
+                                    </div>
+                                    <div class="current">
+                                        <small>Current highest bid</small>
+                                        <strong><?= homebid_money($property['current_bid'] ?? $property['price']) ?></strong>
+                                    </div>
+                                </div>
+                                <div class="card-foot">
+                                    <span><?= (int)$property['bidder_count'] ?> bids</span>
+                                    <span><?= !empty($property['current_bid']) ? 'Auction listing' : 'Open for bidding' ?></span>
+                                </div>
+                                <a class="btn btn-navy view-property"
+                                   href="property-view.php?id=<?= (int)$property['id'] ?>">View Property</a>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                <?php elseif ($featuredLoadError): ?>
+                    <p class="muted">Featured properties are temporarily unavailable. Please try again later.</p>
+                <?php else: ?>
+                    <p class="muted">There are no approved properties available right now. Check back soon for new listings.</p>
+                <?php endif; ?>
             </div>
-            <p class="disclaimer">Sample listings for illustration. Auction terms and eligibility apply.</p>
+            <p class="disclaimer">Showing approved and available properties from the HomeBid database.</p>
         </section>
 
         <section class="how-section" id="how-it-works">
