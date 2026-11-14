@@ -8,12 +8,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  verify_csrf();
  $id=filter_input(INPUT_POST,'property_id',FILTER_VALIDATE_INT);
  $decision=$_POST['decision']??'';
- if($id&&in_array($decision,['approve','reject'],true)){
-  $approved=$decision==='approve'?1:0;
+ if($id&&$decision==='approve'){
+  $approved=1;
   $q=$pdo->prepare('UPDATE properties SET is_approved=? WHERE id=?');$q->execute([$approved,$id]);
   if($q->rowCount()){
    $log=$pdo->prepare('INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)');
-   $log->execute([$staffId,$decision==='approve'?'Approved property listing':'Rejected property listing','property',$id,$_SERVER['REMOTE_ADDR']??null]);
+   $log->execute([$staffId,'Approved property listing','property',$id,$_SERVER['REMOTE_ADDR']??null]);
   }
   $message=$q->rowCount()?'Review decision saved.':'No change was made to that listing.';
  }
@@ -28,6 +28,6 @@ body{font-family:Arial,sans-serif;background:#f5f6fa;color:#182235;margin:0}.hb-
 </style></head><body><main class="hb-wrap"><header class="hb-head"><div><h1>HomeBid Staff Dashboard</h1><p class="hb-sub">Review seller submissions and monitor property listings.</p></div><a href="../index.php">View HomeBid ↗</a></header>
 <?php if($message):?><p class="hb-msg"><?=sh($message)?></p><?php endif;?>
 <div class="hb-stats"><section class="hb-card"><small>Total properties</small><div class="hb-num"><?=(int)$counts['total']?></div></section><section class="hb-card"><small>Awaiting review</small><div class="hb-num"><?=(int)$counts['pending']?></div></section><section class="hb-card"><small>Approved listings</small><div class="hb-num"><?=(int)$counts['approved']?></div></section></div>
-<section class="hb-card"><h2>Pending property approvals</h2><div class="hb-scroll"><table class="hb-table"><thead><tr><th>PROPERTY</th><th>SUBMITTED BY</th><th>LOCATION</th><th>PRICE</th><th>SUBMITTED</th><th>DECISION</th></tr></thead><tbody><?php if(!$pending):?><tr><td colspan="6">There are no pending listings.</td></tr><?php endif;?><?php foreach($pending as $p):?><tr><td><b><?=sh($p['title'])?></b><br><small>ID #<?=(int)$p['id']?></small></td><td><?=sh($p['username']?:'Unknown')?><br><small><?=sh($p['email'])?></small></td><td><?=sh($p['location'])?></td><td>₱<?=number_format((float)$p['price'],2)?></td><td><?=sh($p['created_at'])?></td><td><form method="post" style="display:flex;gap:6px"><input type="hidden" name="csrf_token" value="<?=sh(csrf_token())?>"><input type="hidden" name="property_id" value="<?=(int)$p['id']?>"><button class="hb-btn hb-yes" name="decision" value="approve">Approve</button><button class="hb-btn hb-no" name="decision" value="reject" onclick="return confirm('Reject this listing?')">Reject</button></form></td></tr><?php endforeach;?></tbody></table></div></section>
-<section class="hb-card"><h2>Recent listings</h2><div class="hb-scroll"><table class="hb-table"><thead><tr><th>ID</th><th>PROPERTY</th><th>SUBMITTED BY</th><th>PRICE</th><th>LISTING STATUS</th><th>APPROVAL</th></tr></thead><tbody><?php foreach($recent as $p):?><tr><td>#<?=(int)$p['id']?></td><td><?=sh($p['title'])?></td><td><?=sh($p['username']?:'Unknown')?></td><td>₱<?=number_format((float)$p['price'],2)?></td><td><?=sh($p['status'])?></td><td><?=$p['is_approved']?'Approved':'Pending / Rejected'?></td></tr><?php endforeach;?></tbody></table></div></section>
+<section class="hb-card"><h2>Pending property approvals</h2><div class="hb-scroll"><table class="hb-table"><thead><tr><th>PROPERTY</th><th>SUBMITTED BY</th><th>LOCATION</th><th>PRICE</th><th>SUBMITTED</th><th>DECISION</th></tr></thead><tbody><?php if(!$pending):?><tr><td colspan="6">There are no pending listings.</td></tr><?php endif;?><?php foreach($pending as $p):?><tr><td><b><?=sh($p['title'])?></b><br><small>ID #<?=(int)$p['id']?></small></td><td><?=sh($p['username']?:'Unknown')?><br><small><?=sh($p['email'])?></small></td><td><?=sh($p['location'])?></td><td>₱<?=number_format((float)$p['price'],2)?></td><td><?=sh($p['created_at'])?></td><td><form method="post" style="display:flex;gap:6px"><input type="hidden" name="csrf_token" value="<?=sh(csrf_token())?>"><input type="hidden" name="property_id" value="<?=(int)$p['id']?>"><button class="hb-btn hb-yes" name="decision" value="approve">Approve</button></form></td></tr><?php endforeach;?></tbody></table></div></section>
+<section class="hb-card"><h2>Recent listings</h2><div class="hb-scroll"><table class="hb-table"><thead><tr><th>ID</th><th>PROPERTY</th><th>SUBMITTED BY</th><th>PRICE</th><th>LISTING STATUS</th><th>APPROVAL</th></tr></thead><tbody><?php foreach($recent as $p):?><tr><td>#<?=(int)$p['id']?></td><td><?=sh($p['title'])?></td><td><?=sh($p['username']?:'Unknown')?></td><td>₱<?=number_format((float)$p['price'],2)?></td><td><?=sh($p['status'])?></td><td><?=$p['is_approved']?'Approved':'Pending'?></td></tr><?php endforeach;?></tbody></table></div></section>
 </main></body></html>
