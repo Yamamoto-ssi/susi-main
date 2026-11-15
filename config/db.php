@@ -11,20 +11,24 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 final class MySQLiStatement
 {
-    private mysqli_stmt $stmt;
-    private ?mysqli_result $result = null;
+    private ?mysqli_stmt $stmt;
+    private ?mysqli_result $result;
 
-    public function __construct(mysqli_stmt $stmt) { $this->stmt = $stmt; }
+    public function __construct(?mysqli_stmt $stmt = null, ?mysqli_result $result = null)
+    {
+        $this->stmt = $stmt;
+        $this->result = $result;
+    }
 
     public function execute(array $params = []): bool
     {
+        if (!$this->stmt) return false;
         if ($params) {
             $types = '';
             $values = [];
             foreach ($params as $value) {
                 if (is_int($value)) $types .= 'i';
                 elseif (is_float($value)) $types .= 'd';
-                elseif (is_null($value)) $types .= 's';
                 else $types .= 's';
                 $values[] = $value;
             }
@@ -51,12 +55,13 @@ final class MySQLiStatement
     public function fetchColumn(int $column = 0): mixed
     {
         $row = $this->fetch();
-        if ($row === false) return false;
-        $values = array_values($row);
-        return $values[$column] ?? false;
+        return $row === false ? false : (array_values($row)[$column] ?? false);
     }
 
-    public function rowCount(): int { return $this->stmt->affected_rows; }
+    public function rowCount(): int
+    {
+        return $this->stmt ? $this->stmt->affected_rows : 0;
+    }
 }
 
 final class MySQLiConnection
@@ -73,46 +78,10 @@ final class MySQLiConnection
     public function query(string $sql): MySQLiStatement
     {
         $result = $this->link->query($sql);
-        if ($result instanceof mysqli_result) {
-            // Wrap a direct query result in the same small result interface.
-            return new MySQLiStatementResult($result);
-        }
-        return new MySQLiStatement($this->link->stmt_init());
+        return new MySQLiStatement(null, $result instanceof mysqli_result ? $result : null);
     }
 
     public function lastInsertId(): string { return (string)$this->link->insert_id; }
-}
-
-final class MySQLiStatementResult extends MySQLiStatement
-{
-    private mysqli_result $directResult;
-
-    public function __construct(mysqli_result $result)
-    {
-        // Parent is unused for direct SELECT results.
-        $this->directResult = $result;
-        $reflection = new ReflectionClass(MySQLiStatement::class);
-        $property = $reflection->getProperty('stmt');
-        $property->setAccessible(true);
-        $property->setValue($this, new mysqli_stmt());
-    }
-
-    public function fetch(int $mode = MYSQLI_ASSOC): array|false
-    {
-        return $this->directResult->fetch_assoc();
-    }
-
-    public function fetchAll(int $mode = MYSQLI_ASSOC): array
-    {
-        return $this->directResult->fetch_all(MYSQLI_ASSOC);
-    }
-
-    public function fetchColumn(int $column = 0): mixed
-    {
-        $row = $this->fetch();
-        if ($row === false) return false;
-        return array_values($row)[$column] ?? false;
-    }
 }
 
 $host = getenv('DB_HOST') ?: '127.0.0.1';
@@ -134,7 +103,3 @@ try {
     }
     exit('Database connection failed. Check config/db.php and confirm that MySQL is running and house_and_lot_db exists.');
 }
-
-// Backward-compatible alias while the remaining application files are migrated.
-// Both variables use the MySQLi implementation above; PDO is not used.
-$pdo = $conn;
