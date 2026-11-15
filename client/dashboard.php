@@ -60,339 +60,74 @@ function money($n){return '₱'.number_format((float)$n,2);}
 ?>
 <!doctype html>
 <html lang="en">
-
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>HomeBid Seller Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
-    <style>
-    .dash-main {
-        height: 100vh;
-        overflow: auto;
-        flex: 1;
-        padding: 28px clamp(16px, 3vw, 42px)
-    }
-
-    .dash-wrap {
-        max-width: 1400px;
-        margin: auto
-    }
-
-    .dash-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-        margin-bottom: 24px
-    }
-
-    .dash-top h1 {
-        font-size: 26px
-    }
-
-    .muted2 {
-        color: #64748b;
-        margin-top: 5px
-    }
-
-    .dash-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 14px;
-        margin: 20px 0
-    }
-
-    .dash-card {
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 18px;
-        min-width: 0;
-        margin-bottom: 18px
-    }
-
-    .dash-card small {
-        color: #64748b
-    }
-
-    .dash-card strong.num {
-        display: block;
-        font-size: 26px;
-        margin-top: 8px
-    }
-
-    .dash-section h2 {
-        font-size: 18px;
-        margin-bottom: 12px
-    }
-
-    .dash-table {
-        width: 100%;
-        border-collapse: collapse
-    }
-
-    .dash-table th,
-    .dash-table td {
-        text-align: left;
-        padding: 12px;
-        border-bottom: 1px solid #e2e8f0;
-        font-size: 13px
-    }
-
-    .dash-table th {
-        color: #64748b;
-        font-size: 11px
-    }
-
-    .dash-scroll {
-        overflow: auto
-    }
-
-    .dash-form {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-        margin-top: 14px
-    }
-
-    .dash-form label {
-        display: grid;
-        gap: 6px;
-        font-weight: 600
-    }
-
-    .dash-form input,
-    .dash-form textarea {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        font: inherit
-    }
-
-    .dash-form .wide {
-        grid-column: 1/-1
-    }
-
-    .dash-btn {
-        border: 0;
-        border-radius: 8px;
-        background: #b7791f;
-        color: #fff;
-        padding: 11px 16px;
-        font-weight: 700;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-block
-    }
-
-    .delete-property-btn {
-        border: 1px solid #fecaca;
-        border-radius: 7px;
-        background: #fef2f2;
-        color: #b91c1c;
-        padding: 7px 11px;
-        font: inherit;
-        font-weight: 700;
-        cursor: pointer;
-    }
-    .delete-property-btn:hover { background: #fee2e2; }
-    .dash-alert {
-        padding: 12px;
-        border-radius: 8px;
-        margin: 12px 0;
-        background: #ecfdf5;
-        color: #166534
-    }
-
-    .dash-error {
-        background: #fef2f2;
-        color: #991b1b
-    }
-
-    .pill2 {
-        padding: 4px 8px;
-        border-radius: 20px;
-        background: #fef3c7;
-        color: #92400e;
-        font-size: 11px
-    }
-
-    .pill2.ok {
-        background: #dcfce7;
-        color: #166534
-    }
-
-    @media(max-width:850px) {
-        .dash-grid {
-            grid-template-columns: repeat(2, 1fr)
-        }
-
-        .dash-form {
-            grid-template-columns: 1fr
-        }
-
-        .dash-main {
-            height: auto;
-            min-height: 100vh
-        }
-
-        .dash-table {
-            min-width: 650px
-        }
-    }
-    </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Seller Dashboard | HomeBid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
-    <aside class="side">
-        <div class="logo"><span class="mk"><i></i></span>
-            <div><b>HOME<span>BID</span></b><small>SELLER PORTAL</small></div>
-        </div>
-        <div class="cap">ACCOUNT</div>
-        <div class="ws">
-            <div class="av"><?=strtoupper(substr(h($account['username']),0,2))?></div>
-            <div><b><?=h($account['username'])?></b><small><?=h($account['role'])?></small></div>
-        </div>
-        <div class="cap">MENU</div>
-        <nav class="nav"><a href="#overview">Overview</a><a href="#properties">My Properties</a><a href="#submit">Submit
-                Property</a><a href="#auctions">My Auctions</a><a href="#viewings">Viewing Requests</a><a
-                href="../index.php">HomeBid Home</a>
-            <form method="post" action="../logout.php" style="margin:12px 0"><input type="hidden" name="csrf_token"
-                    value="<?=h(csrf_token())?>"><button type="submit" class="dash-btn" style="width:100%">Log
-                    out</button></form>
-        </nav>
-    </aside>
-    <main class="dash-main">
-        <div class="dash-wrap">
-            <header class="dash-top" id="overview">
-                <div>
-                    <h1>Welcome, <?=h($account['username'])?></h1>
-                    <p class="muted2">Manage your property listings and auction activity.</p>
-                </div><a class="dash-btn" href="#submit">+ Add Property</a>
-            </header>
-            <?php if($notice):?><div class="dash-alert"><?=h($notice)?></div><?php endif;?><?php if($error):?><div
-                class="dash-alert dash-error"><?=h($error)?></div><?php endif;?>
-            <div class="dash-grid">
-                <div class="dash-card"><small>Total properties</small><strong
-                        class="num"><?=(int)$stats['total']?></strong></div>
-                <div class="dash-card"><small>Awaiting approval</small><strong
-                        class="num"><?=(int)$stats['pending']?></strong></div>
-                <div class="dash-card"><small>Approved listings</small><strong
-                        class="num"><?=(int)$stats['approved']?></strong></div>
-                <div class="dash-card"><small>Sold properties</small><strong
-                        class="num"><?=(int)$stats['sold']?></strong></div>
-            </div>
-            <section class="dash-section" id="submit">
-                <div class="dash-card">
-                    <h2>Submit a property</h2>
-                    <p class="muted2">New listings are connected to your signed-in account and require staff approval.
-                    </p>
-                    <form method="post" class="dash-form"><input type="hidden" name="csrf_token"
-                            value="<?=h(csrf_token())?>"><label>Property title<input name="title" maxlength="150"
-                                required></label><label>Location<input name="location" maxlength="255"
-                                placeholder="City, Province" required></label><label>Lot area (m²)<input name="lot_area"
-                                type="number" min="0.01" step="0.01" required></label><label>Floor area (m²)<input
-                                name="floor_area" type="number" min="0.01" step="0.01" required></label><label>Starting
-                            price (₱)<input name="price" type="number" min="0.01" step="0.01" required></label><label
-                            class="wide">Description<textarea name="description" rows="4" required></textarea></label>
-                        <div class="wide"><button class="dash-btn" type="submit">Submit for approval</button></div>
-                    </form>
-                </div>
-            </section>
-            <section class="dash-section" id="properties">
-                <h2>My properties</h2>
-                <div class="dash-card dash-scroll">
-                    <table class="dash-table">
-                        <thead>
-                            <tr>
-                                <th>PROPERTY</th>
-                                <th>LOCATION</th>
-                                <th>PRICE</th>
-                                <th>LISTING STATUS</th>
-                                <th>APPROVAL</th>
-                                <th>BIDS</th>
-                                <th>ADDED</th>
-                                <th>ACTION</th>
-                            </tr>
-                        </thead>
-                        <tbody><?php if(!$properties):?><tr>
-                                <td colspan="8">No listings yet. Submit your first property above.</td>
-                            </tr><?php endif;?><?php foreach($properties as $p):?><tr>
-                                <td><b><?=h($p['title'])?></b></td>
-                                <td><?=h($p['location'])?></td>
-                                <td><?=money($p['price'])?></td>
-                                <td><?=h($p['status'])?></td>
-                                <td><span
-                                        class="pill2 <?=$p['is_approved']?'ok':''?>"><?=$p['is_approved']?'Approved':'Pending'?></span>
-                                </td>
-                                <td><?=(int)$p['bid_count']?></td>
-                                <td><?=h(date('M j, Y',strtotime($p['created_at'])))?></td>
-                                <td>
-                                    <form method="post" onsubmit="return confirm('Delete this property permanently? This cannot be undone.');">
-                                        <input type="hidden" name="csrf_token" value="<?=h(csrf_token())?>">
-                                        <input type="hidden" name="action" value="delete_property">
-                                        <input type="hidden" name="property_id" value="<?=(int)$p['id']?>">
-                                        <button type="submit" class="delete-property-btn">Delete</button>
-                                    </form>
-                                </td>
-                            </tr><?php endforeach;?></tbody>
-                    </table>
-                </div>
-            </section>
-            <section class="dash-section" id="auctions">
-                <h2>My auctions</h2>
-                <div class="dash-card dash-scroll">
-                    <table class="dash-table">
-                        <thead>
-                            <tr>
-                                <th>PROPERTY</th>
-                                <th>STARTING BID</th>
-                                <th>CURRENT BID</th>
-                                <th>STARTS</th>
-                                <th>ENDS</th>
-                                <th>STATUS</th>
-                            </tr>
-                        </thead>
-                        <tbody><?php if(!$auctions):?><tr>
-                                <td colspan="6">No auctions are linked to your listings yet.</td>
-                            </tr><?php endif;?><?php foreach($auctions as $a):?><tr>
-                                <td><?=h($a['title'])?></td>
-                                <td><?=money($a['starting_bid'])?></td>
-                                <td><?=money($a['current_bid'])?></td>
-                                <td><?=h($a['start_time'])?></td>
-                                <td><?=h($a['end_time'])?></td>
-                                <td><?=h(ucfirst($a['status']))?></td>
-                            </tr><?php endforeach;?></tbody>
-                    </table>
-                </div>
-            </section>
-            <section class="dash-section" id="viewings">
-                <h2>Viewing requests</h2>
-                <div class="dash-card dash-scroll">
-                    <table class="dash-table">
-                        <thead>
-                            <tr>
-                                <th>PROPERTY</th>
-                                <th>SCHEDULE</th>
-                                <th>STATUS</th>
-                                <th>REQUESTED</th>
-                            </tr>
-                        </thead>
-                        <tbody><?php if(!$viewings):?><tr>
-                                <td colspan="4">No viewing requests for your properties.</td>
-                            </tr><?php endif;?><?php foreach($viewings as $v):?><tr>
-                                <td><?=h($v['title'])?></td>
-                                <td><?=h($v['scheduled_date'])?></td>
-                                <td><?=h($v['status'])?></td>
-                                <td><?=h($v['created_at'])?></td>
-                            </tr><?php endforeach;?></tbody>
-                    </table>
-                </div>
-            </section>
-        </div>
-    </main>
-</body>
-
-</html>
+<aside class="sidebar" id="sidebar">
+ <div class="brand"><div class="brand-mark">⌂</div><div><strong>HOME<span>BID</span></strong><small>SELLER PORTAL</small></div><button class="mobile-close" onclick="toggleSidebar()">×</button></div>
+ <div class="workspace"><small>WORKSPACE</small><div class="workspace-user"><span class="avatar small"><?=strtoupper(substr(h($account['username']),0,2))?></span><span><strong><?=h($account['username'])?></strong><small><?=h($account['role'])?> account</small></span></div></div>
+ <nav class="side-nav">
+  <small class="nav-label">MAIN MENU</small>
+  <a class="active" href="#overview"><span>▦</span> Overview</a>
+  <a href="#properties"><span>⌂</span> My Properties <b><?=(int)$stats['total']?></b></a>
+  <a href="#approvals"><span>✓</span> Approvals <b><?=(int)$stats['pending']?></b></a>
+  <a href="#auctions"><span>⚒</span> Manage Auctions</a>
+  <a href="#viewings"><span>◷</span> Viewing Requests</a>
+  <a href="#activity"><span>♧</span> Recent Activity</a>
+ </nav>
+ <div class="support-card"><div class="support-icon">◇</div><strong>Need assistance?</strong><p>Our HomeBid support team is ready to help.</p><a href="../index.php#contact">Contact support</a></div>
+ <div class="profile"><span class="avatar"><?=strtoupper(substr(h($account['username']),0,2))?></span><span><strong><?=h($account['username'])?></strong><small>Seller account</small></span><form method="post" action="../logout.php"><input type="hidden" name="csrf_token" value="<?=h(csrf_token())?>"><button title="Log out" aria-label="Log out">↗</button></form></div>
+</aside>
+<div class="main-shell">
+<header class="topbar"><button class="menu-button" onclick="toggleSidebar()">☰</button><div class="crumb">Seller Portal <span>›</span> <strong>Overview</strong></div><div class="top-actions"><label class="search-box"><span>⌕</span><input id="globalSearch" placeholder="Search properties..."></label><a class="bell" href="#activity" title="Recent activity">♧<i></i></a><a class="btn primary small-primary" href="#submit">＋ <span>Add Property</span></a></div></header>
+<main class="content" id="overview">
+ <section class="welcome"><div><p class="eyebrow"><?=strtoupper(date('l, d F Y'))?></p><h1>Welcome back, <?=h($account['username'])?>.</h1><span>Here’s what’s happening across your property portfolio.</span></div><div class="welcome-actions"><a class="btn secondary" href="#properties">View portfolio</a><a class="btn primary" href="#submit">＋ Submit property</a></div></section>
+ <?php if($notice):?><div class="alert success"><?=h($notice)?></div><?php endif;?><?php if($error):?><div class="alert error"><?=h($error)?></div><?php endif;?>
+ <section class="stats-grid">
+  <article class="stat-card"><div class="stat-icon navy">⌂</div><div class="stat-top">Total Properties <span>•••</span></div><strong><?=(int)$stats['total']?></strong><small>All your submitted listings</small></article>
+  <article class="stat-card"><div class="stat-icon amber">◷</div><div class="stat-top">Pending Approval <span>•••</span></div><strong><?=(int)$stats['pending']?></strong><small>Awaiting administrator review</small></article>
+  <article class="stat-card"><div class="stat-icon green">✓</div><div class="stat-top">Approved <span>•••</span></div><strong><?=(int)$stats['approved']?></strong><small>Authorized property listings</small></article>
+  <article class="stat-card"><div class="stat-icon blue">⌁</div><div class="stat-top">Ongoing Biddings <span>•••</span></div><strong><?=count(array_filter($auctions,fn($a)=>strtolower((string)$a['status'])==='active'))?></strong><small>Currently active auctions</small></article>
+  <article class="stat-card"><div class="stat-icon purple">♜</div><div class="stat-top">Completed / Sold <span>•••</span></div><strong><?=(int)$stats['sold']?></strong><small>Successfully completed listings</small></article>
+  <article class="stat-card"><div class="stat-icon red">×</div><div class="stat-top">Rejected <span>•••</span></div><strong><?=isset($stats['rejected'])?(int)$stats['rejected']:0?></strong><small>Listings needing your attention</small></article>
+ </section>
+ <section class="dashboard-grid">
+  <article class="panel portfolio"><div class="panel-head"><div><h2>Portfolio overview</h2><p>Property submission and auction summary</p></div><span class="period-tag">All time</span></div>
+   <div class="portfolio-summary"><div><small>Properties submitted</small><strong><?=(int)$stats['total']?></strong></div><div><small>Approval rate</small><strong><?=((int)$stats['total']>0?round(((int)$stats['approved']/(int)$stats['total'])*100):0)?>%</strong></div><div><small>Sold properties</small><strong><?=(int)$stats['sold']?></strong></div></div>
+   <div class="bar-chart" aria-label="Property status summary"><div class="bar-row"><span>Approved</span><div><i style="width:<?=((int)$stats['total']>0?((int)$stats['approved']/(int)$stats['total']*100):0)?>%"></i></div><b><?=(int)$stats['approved']?></b></div><div class="bar-row"><span>Pending</span><div><i class="gold-bar" style="width:<?=((int)$stats['total']>0?((int)$stats['pending']/(int)$stats['total']*100):0)?>%"></i></div><b><?=(int)$stats['pending']?></b></div><div class="bar-row"><span>Sold</span><div><i class="green-bar" style="width:<?=((int)$stats['total']>0?((int)$stats['sold']/(int)$stats['total']*100):0)?>%"></i></div><b><?=(int)$stats['sold']?></b></div></div>
+  </article>
+  <article class="panel live-card"><div class="panel-head"><div><span class="live-label">AUCTION ACTIVITY</span><h2><?=count($auctions)?> linked auctions</h2><p>Auctions connected to your properties</p></div><span class="auction-mark">⚒</span></div>
+   <?php if($auctions):$featuredAuction=$auctions[0];?><div class="bid-amount"><span>LATEST AUCTION</span><strong><?=h($featuredAuction['title'])?></strong><small><?=h(ucfirst((string)$featuredAuction['status']))?> · Current bid <?=money($featuredAuction['current_bid'])?></small></div><?php else:?><div class="empty-auction">No auctions have been created for your listings yet.</div><?php endif;?>
+   <div class="bid-stats"><span><b><?=count($auctions)?></b><small>Total auctions</small></span><span><b><?=array_sum(array_map(fn($a)=>0,$auctions))?></b><small>Bid count shown below</small></span></div><a class="dark-button" href="#auctions">View auction activity <span>→</span></a>
+  </article>
+ </section>
+ <section class="bottom-grid">
+  <article class="panel"><div class="panel-head"><div><h2>Recent properties</h2><p>Your latest property submissions</p></div><a class="text-link" href="#properties">View all →</a></div><div class="table-wrap"><table><thead><tr><th>PROPERTY</th><th>STARTING PRICE</th><th>STATUS</th><th>ADDED</th><th></th></tr></thead><tbody>
+  <?php if(!$properties):?><tr><td colspan="5" class="empty">No properties submitted yet.</td></tr><?php endif;?>
+  <?php foreach(array_slice($properties,0,4) as $p):?><tr><td><div class="property-cell"><div class="property-thumb">⌂</div><span><strong><?=h($p['title'])?></strong><small><?=h($p['location'])?></small></span></div></td><td><strong><?=money($p['price'])?></strong></td><td><span class="badge <?=$p['is_approved']?'badge-approved':'badge-pending'?>"><i></i><?=$p['is_approved']?'Approved':'Pending'?></span></td><td><?=h(date('M j, Y',strtotime($p['created_at'])))?></td><td><a class="row-link" href="#properties">›</a></td></tr><?php endforeach;?>
+  </tbody></table></div></article>
+  <article class="panel activity" id="activity"><div class="panel-head"><div><h2>Recent activity</h2><p>Latest updates on your listings</p></div></div>
+   <?php if(!$properties&&!$auctions&&!$viewings):?><p class="empty-activity">Your property activity will appear here.</p><?php endif;?>
+   <?php foreach(array_slice($properties,0,3) as $p):?><div class="activity-item"><div class="activity-icon <?=((int)$p['is_approved']===1?'green':'amber')?>"><?=((int)$p['is_approved']===1?'✓':'◷')?></div><span><strong><?=((int)$p['is_approved']===1?'Property approved':'Property submitted')?></strong><p><?=h($p['title'])?></p><small><?=h(date('M j, Y',strtotime($p['created_at'])))?></small></span></div><?php endforeach;?>
+   <?php foreach(array_slice($viewings,0,2) as $v):?><div class="activity-item"><div class="activity-icon blue">◷</div><span><strong>Viewing request</strong><p><?=h($v['title'])?> · <?=h($v['status'])?></p><small><?=h($v['scheduled_date'])?></small></span></div><?php endforeach;?>
+  </article>
+ </section>
+ <div class="admin-notice"><div>◇</div><span><strong>Important reminder</strong><p>Only administrator-approved properties can proceed to auction. Check your approval status and update any listing that needs revision.</p></span><a href="#approvals">Review approvals</a></div>
+ <section class="section-block" id="submit"><div class="section-title"><div><p class="eyebrow">PROPERTY MANAGEMENT</p><h2>Submit a property</h2><small>Provide the property details for administrator review.</small></div></div><article class="panel form-panel"><form method="post" class="property-form"><input type="hidden" name="csrf_token" value="<?=h(csrf_token())?>"><label>Property title<input name="title" maxlength="150" required placeholder="e.g. Modern family home"></label><label>Property address<input name="location" maxlength="255" required placeholder="City, Province"></label><label>Lot area (m²)<input name="lot_area" type="number" min="0.01" step="0.01" required></label><label>Floor area (m²)<input name="floor_area" type="number" min="0.01" step="0.01" required></label><label>Starting bid price (₱)<input name="price" type="number" min="0.01" step="0.01" required></label><label class="full">Property description<textarea name="description" rows="4" required></textarea></label><div class="full form-note">◇ Your property will remain unpublished until an administrator approves the submission.</div><div class="full"><button class="btn primary" type="submit">Submit for approval →</button></div></form></article></section>
+ <section class="section-block" id="properties"><div class="section-title"><div><p class="eyebrow">YOUR PORTFOLIO</p><h2>My Properties</h2><small>Manage your submitted property listings.</small></div></div><article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>PROPERTY</th><th>LOCATION</th><th>PRICE</th><th>APPROVAL</th><th>STATUS</th><th>BIDS</th><th>ACTION</th></tr></thead><tbody><?php if(!$properties):?><tr><td colspan="7" class="empty">No listings found.</td></tr><?php endif;?><?php foreach($properties as $p):?><tr><td><strong><?=h($p['title'])?></strong></td><td><?=h($p['location'])?></td><td><?=money($p['price'])?></td><td><span class="badge <?=$p['is_approved']?'badge-approved':'badge-pending'?>"><?=$p['is_approved']?'Approved':'Pending'?></span></td><td><?=h($p['status'])?></td><td><?=(int)$p['bid_count']?></td><td><form method="post" onsubmit="return confirm('Delete this property permanently? This cannot be undone.');"><input type="hidden" name="csrf_token" value="<?=h(csrf_token())?>"><input type="hidden" name="action" value="delete_property"><input type="hidden" name="property_id" value="<?=(int)$p['id']?>"><button class="delete-btn">Delete</button></form></td></tr><?php endforeach;?></tbody></table></div></article></section>
+ <section class="section-block" id="approvals"><div class="section-title"><div><p class="eyebrow">ADMINISTRATOR REVIEW</p><h2>Approval status</h2><small>Track which listings are approved and which are awaiting review.</small></div></div><article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>PROPERTY</th><th>SUBMITTED</th><th>REVIEW STATUS</th></tr></thead><tbody><?php foreach($properties as $p):?><tr><td><?=h($p['title'])?></td><td><?=h(date('M j, Y',strtotime($p['created_at'])))?></td><td><span class="badge <?=$p['is_approved']?'badge-approved':'badge-pending'?>"><?=$p['is_approved']?'Approved':'Pending'?></span></td></tr><?php endforeach;?><?php if(!$properties):?><tr><td colspan="3" class="empty">No submissions to review.</td></tr><?php endif;?></tbody></table></div></article></section>
+ <section class="section-block" id="auctions"><div class="section-title"><div><p class="eyebrow">BIDDING MANAGEMENT</p><h2>Manage Auctions</h2><small>Monitor auction schedules and current bids for your properties.</small></div></div><article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>PROPERTY</th><th>STARTING BID</th><th>CURRENT BID</th><th>STARTS</th><th>ENDS</th><th>STATUS</th></tr></thead><tbody><?php if(!$auctions):?><tr><td colspan="6" class="empty">No auctions linked to your properties yet.</td></tr><?php endif;?><?php foreach($auctions as $a):?><tr><td><?=h($a['title'])?></td><td><?=money($a['starting_bid'])?></td><td><?=money($a['current_bid'])?></td><td><?=h($a['start_time'])?></td><td><?=h($a['end_time'])?></td><td><?=h(ucfirst((string)$a['status']))?></td></tr><?php endforeach;?></tbody></table></div></article></section>
+ <section class="section-block" id="viewings"><div class="section-title"><div><p class="eyebrow">PROPERTY VISITS</p><h2>Viewing requests</h2><small>Appointments requested for your listings.</small></div></div><article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>PROPERTY</th><th>SCHEDULE</th><th>STATUS</th><th>REQUESTED</th></tr></thead><tbody><?php if(!$viewings):?><tr><td colspan="4" class="empty">No viewing requests yet.</td></tr><?php endif;?><?php foreach($viewings as $v):?><tr><td><?=h($v['title'])?></td><td><?=h($v['scheduled_date'])?></td><td><?=h($v['status'])?></td><td><?=h($v['created_at'])?></td></tr><?php endforeach;?></tbody></table></div></article></section>
+ <footer class="footer">© <?=date('Y')?> HomeBid · Seller Portal</footer>
+</main></div>
+<script>
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('sidebar-open')}
+document.querySelectorAll('.side-nav a').forEach(a=>a.addEventListener('click',()=>{document.querySelectorAll('.side-nav a').forEach(x=>x.classList.remove('active'));a.classList.add('active');document.getElementById('sidebar').classList.remove('sidebar-open')}));
+const search=document.getElementById('globalSearch'); if(search) search.addEventListener('input',()=>{const q=search.value.toLowerCase();document.querySelectorAll('#properties tbody tr').forEach(row=>row.style.display=row.innerText.toLowerCase().includes(q)?'':'none')});
+</script>
+</body></html>
