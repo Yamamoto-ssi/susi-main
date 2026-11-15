@@ -40,5 +40,11 @@ if ($isStaffPortal && !in_array($account['role'], ['Administrator','Staff'], tru
 if (!$isStaffPortal && in_array($account['role'], ['Administrator','Staff'], true)) {
  respond(403,['ok'=>false,'message'=>'Administrator and Staff accounts must use the Staff / Admin Login page.']);
 }
-$redirect=in_array($account['role'], ['Administrator','Staff'], true) ? 'staff/dashboard.php' : 'client/dashboard.php';
+if ($account['role'] === 'Client' || $account['role'] === 'Buyer') {
+ $redirect = 'client/dashboard.php';
+} elseif ($account['role'] === 'Staff' || $account['role'] === 'Administrator') {
+ $redirect = 'staff/dashboard.php';
+} else {
+ respond(403,['ok'=>false,'message'=>'Your account role is not configured for dashboard access. Please contact an administrator.']);
+}
 respond(200,['ok'=>true,'message'=>'Login successful.','redirect'=>$redirect]);
