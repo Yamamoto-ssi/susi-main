@@ -6,8 +6,8 @@ require_once __DIR__.'/../config/db.php';
 
 function bh($v):string{return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
 function buyer_money($v):string{return '₱'.number_format((float)$v,2);}
-function buyer_rows(PDO $pdo,string $sql,array $args=[]):array{$s=$pdo->prepare($sql);$s->execute($args);return $s->fetchAll(PDO::FETCH_ASSOC);}
-function buyer_one(PDO $pdo,string $sql,array $args=[]):array{$s=$pdo->prepare($sql);$s->execute($args);return $s->fetch(PDO::FETCH_ASSOC)?:[];}
+function buyer_rows(MySQLiConnection $conn,string $sql,array $args=[]):array{$s=$conn->prepare($sql);$s->execute($args);return $s->fetchAll(MYSQLI_ASSOC);}
+function buyer_one(MySQLiConnection $conn,string $sql,array $args=[]):array{$s=$conn->prepare($sql);$s->execute($args);return $s->fetch(MYSQLI_ASSOC)?:[];}
 function buyer_icon(string $name,int $size=18):string{
 $paths=[
 'home'=>'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -28,19 +28,19 @@ return '<svg width="'.$size.'" height="'.$size.'" viewBox="0 0 24 24" fill="none
 }
 function buyer_badge(string $status):string{$v=strtolower($status);$cls=in_array($v,['active','approved','winning','won'],true)?'green':(in_array($v,['upcoming','pending'],true)?'amber':'gray');return '<span class="status '.$cls.'">'.bh(ucfirst($status)).'</span>';}
 
-$account=buyer_one($pdo,'SELECT username,email FROM users WHERE id=?',[$userId]);
+$account=buyer_one($conn,'SELECT username,email FROM users WHERE id=?',[$userId]);
 $username=$account['username']??'Buyer';
 $initials=strtoupper(substr(preg_replace('/[^a-z0-9]/i','',$username)?:'HB',0,2));
 $tab=$_GET['tab']??'home';
 $allowed=['home','browse','my-bids'];
 if(!in_array($tab,$allowed,true))$tab='home';
 $search=trim((string)($_GET['q']??''));
-$stats=buyer_one($pdo,"SELECT
+$stats=buyer_one($conn,"SELECT
  (SELECT COUNT(*) FROM auctions a JOIN properties p ON p.id=a.property_id WHERE p.is_approved=1 AND p.status='Available' AND a.status='active') active_auctions,
  (SELECT COUNT(*) FROM properties WHERE is_approved=1 AND status='Available') available_properties,
  (SELECT COUNT(*) FROM bids WHERE user_id=?) bids_placed,
  (SELECT COALESCE(MAX(bid_amount),0) FROM bids WHERE user_id=?) highest_bid",[$userId,$userId]);
-$auctions=buyer_rows($pdo,"SELECT a.id auction_id,a.status auction_status,a.starting_bid,a.current_bid,a.start_time,a.end_time,a.property_id,
+$auctions=buyer_rows($conn,"SELECT a.id auction_id,a.status auction_status,a.starting_bid,a.current_bid,a.start_time,a.end_time,a.property_id,
  p.title,p.location,p.description,p.lot_area,p.floor_area,p.price,p.image_path,
  (SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count
  FROM auctions a JOIN properties p ON p.id=a.property_id
@@ -48,7 +48,7 @@ $auctions=buyer_rows($pdo,"SELECT a.id auction_id,a.status auction_status,a.star
  AND (p.title LIKE ? OR p.location LIKE ? OR p.description LIKE ?)
  ORDER BY CASE WHEN a.status='active' THEN 0 ELSE 1 END,a.end_time ASC LIMIT 12",
  ['%'.$search.'%','%'.$search.'%','%'.$search.'%']);
-$myBids=buyer_rows($pdo,"SELECT b.id,b.bid_amount,b.status bid_status,b.created_at,p.title,p.location,a.status auction_status,a.current_bid,a.end_time,p.image_path
+$myBids=buyer_rows($conn,"SELECT b.id,b.bid_amount,b.status bid_status,b.created_at,p.title,p.location,a.status auction_status,a.current_bid,a.end_time,p.image_path
  FROM bids b JOIN properties p ON p.id=b.property_id
  LEFT JOIN auctions a ON a.property_id=p.id
  WHERE b.user_id=? ORDER BY b.created_at DESC LIMIT 10",[$userId]);
