@@ -6,7 +6,7 @@ require_once __DIR__ . '/config/db.php';
 $featuredProperties = [];
 $featuredLoadError = false;
 try {
-    $featuredQuery = $pdo->query("
+    $featuredQuery = $conn->query("
         SELECT
             p.id, p.title, p.location, p.description, p.lot_area, p.floor_area,
             p.price, p.status, p.is_approved, p.image_path,
