@@ -13,20 +13,412 @@ function e($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}function 
 function badge($s){$c=strtolower($s);if(!in_array($c,['approved','pending','live','active','rejected']))$c='pending';return '<span class="badge badge-'.$c.'"><i></i>'.e($s).'</span>';}
 $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$stats['total']],['approvals','Approvals','check',$stats['pending']],['auctions','Manage Auctions','gavel',''],['live','Live Bidding','pulse',count($active)],['results','Auction Results','trophy',$stats['sold']],['notifications','Notifications','bell','']];$titles=['overview'=>'Overview','properties'=>'My Properties','approvals'=>'Approvals','auctions'=>'Manage Auctions','live'=>'Live Bidding','results'=>'Auction Results','notifications'=>'Notifications'];
 ?>
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($titles[$page])?> | HomeBid</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=figma-2"></head><body><div class="app-shell">
-<aside class="sidebar" id="sidebar"><div class="brand"><div class="brand-mark"><?=ico('building',21)?></div><div><strong>HOME<span>BID</span></strong><small>SELLER PORTAL</small></div><button class="mobile-close" onclick="toggleMenu()"><?=ico('x')?></button></div><div class="workspace"><small>WORKSPACE</small><button><span class="avatar small"><?=e($initials)?></span><span><strong><?=e($account['username'])?></strong><small>Verified seller</small></span><?=ico('chevron',14)?></button></div><nav><small class="nav-label">MAIN MENU</small><?php foreach($nav as [$id,$label,$icon,$count]):?><a class="<?=$page===$id?'active':''?>" href="?page=<?=$id?>"><?=ico($icon)?><span><?=e($label)?></span><?php if($count!==''):?><b><?=e($count)?></b><?php endif;?></a><?php endforeach;?></nav><div class="support-card"><div><?=ico('shield')?></div><strong>Need assistance?</strong><p>Our auction support team is ready to help.</p><a href="../index.php#contact">Contact support</a></div><div class="profile"><span class="avatar"><?=e($initials)?></span><span><strong><?=e($account['username'])?></strong><small><?=e($account['role'])?></small></span><form class="logout-form" method="post" action="../logout.php"><input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>"><button title="Log out"><?=ico('dots')?></button></form></div></aside>
-<main><header><button class="menu-button" onclick="toggleMenu()"><?=ico('menu')?></button><div class="breadcrumbs"><span>Seller Portal</span><?=ico('chevron',13)?><strong><?=e($titles[$page])?></strong></div><div class="header-actions"><label class="search"><?=ico('search')?><input id="globalSearch" placeholder="Search properties, auctions..."><kbd>⌘ K</kbd></label><a class="bell" href="?page=notifications"><?=ico('bell')?><span></span></a><button class="primary small-primary" onclick="openForm()"><?=ico('plus')?> <span>Add Property</span></button></div></header><div class="content">
-<?php if($notice):?><div class="flash success"><?=e($notice)?></div><?php endif;?><?php if($error):?><div class="flash error"><?=e($error)?></div><?php endif;?>
-<?php if($page==='overview'):?><section class="welcome"><div><p><?=strtoupper(date('l, d F'))?></p><h1>Good morning, <?=e($account['username'])?>.</h1><span>Here’s what’s happening across your property portfolio today.</span></div><div class="welcome-actions"><a class="secondary" href="?page=results"><?=ico('file')?> Export report</a><button class="primary" onclick="openForm()"><?=ico('plus')?> Submit property</button></div></section>
-<section class="stats-grid"><?php $cards=[['Total Properties',$stats['total'],'Your submitted listings','building','navy'],['Pending Approval',$stats['pending'],'Awaiting administrator review','clock','amber'],['Approved',$stats['approved'],'Approved property listings','check','green'],['Ongoing Biddings',count($active),$bidTotal.' total bids','pulse','blue'],['Completed',$stats['sold'],'Successfully completed','trophy','purple'],['Rejected',$stats['rejected'],'Review administrator feedback','x','red']];foreach($cards as [$l,$v,$n,$i,$t]):?><article class="stat-card"><div class="stat-icon <?=$t?>"><?=ico($i)?></div><div class="stat-top"><span><?=e($l)?></span><?=ico('dots')?></div><strong><?=e($v)?></strong><small><?=e($n)?></small></article><?php endforeach;?></section>
-<section class="dashboard-grid"><article class="panel portfolio"><div class="panel-head"><div><h2>Portfolio overview</h2><p>Submission and auction performance</p></div><select><option>All time</option></select></div><div class="chart-metrics"><span><i class="gold"></i>Auction value<strong><?=peso(array_sum(array_map(fn($a)=>(float)($a['current_bid']??$a['starting_bid']??0),$auctions)))?></strong></span><span><i></i>Properties sold<strong><?=$stats['sold']?></strong></span><div><b><?=$stats['total']?round($stats['approved']/$stats['total']*100):0?>%</b> approval rate</div></div><div class="chart"><div class="y-labels"><span>₱800k</span><span>₱600k</span><span>₱400k</span><span>₱200k</span><span>₱0</span></div><div class="chart-area"><div class="grid-lines"><i></i><i></i><i></i><i></i><i></i></div><svg viewBox="0 0 640 190" preserveAspectRatio="none"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bd934d" stop-opacity=".22"/><stop offset="1" stop-color="#bd934d" stop-opacity="0"/></linearGradient></defs><path d="M0 154 C70 139 85 100 130 111 S210 146 260 89 S340 42 390 72 S480 108 520 51 S595 20 640 36 L640 190 L0 190Z" fill="url(#area)"/><path d="M0 154 C70 139 85 100 130 111 S210 146 260 89 S340 42 390 72 S480 108 520 51 S595 20 640 36" fill="none" stroke="#b78c43" stroke-width="3"/></svg><div class="x-labels"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span></div></div></div></article>
-<article class="panel live-card"><div class="panel-head"><div><span class="live-label"><i></i> LIVE AUCTION</span><h2><?=e($featured['title']??'No active auction yet')?></h2><p><?=$featured?'Auction status: '.e($featured['status']):'An approved property can be scheduled for auction.'?></p></div><a class="icon-button" href="?page=live"><?=ico('arrow')?></a></div><div class="bid-amount"><span>CURRENT HIGHEST BID</span><strong><?=peso($highest)?></strong><small><?=ico('trend',14)?> <?=$bidTotal?> bids recorded for your properties</small></div><div class="bid-stats"><span><?=ico('users')?><b><?=$bidTotal?></b><small>Total bids</small></span><span><?=ico('gavel')?><b><?=count($auctions)?></b><small>Auctions</small></span><span><?=ico('clock')?><b><?=count($active)?></b><small>Active now</small></span></div><a class="dark-button" href="?page=live">Monitor live bidding <?=ico('arrow')?></a></article></section>
-<section class="bottom-grid"><article class="panel"><div class="panel-head"><div><h2>Recent properties</h2><p>Your latest property submissions</p></div><a class="text-button" href="?page=properties">View all <?=ico('arrow',14)?></a></div><div class="table-wrap"><table><thead><tr><th>PROPERTY</th><th>STARTING BID</th><th>STATUS</th><th>UPDATED</th><th></th></tr></thead><tbody><?php if(!$properties):?><tr><td colspan="5" class="empty-row">No properties submitted yet.</td></tr><?php endif;?><?php foreach(array_slice($properties,0,4) as $p):?><tr><td><div class="property-cell"><div class="list-icon"><?=ico('home')?></div><span><strong><?=e($p['title'])?></strong><small><?=e($p['location'])?></small></span></div></td><td><strong><?=peso($p['price'])?></strong></td><td><?=badge(!empty($p['is_approved'])?'Approved':(strtolower($p['status'])==='rejected'?'Rejected':'Pending'))?></td><td><?=e(date('M j, Y',strtotime($p['created_at'])))?></td><td><a class="row-button" href="?page=properties"><?=ico('chevron')?></a></td></tr><?php endforeach;?></tbody></table></div></article><article class="panel activity"><div class="panel-head"><div><h2>Recent activity</h2><p>Latest portfolio updates</p></div><?=ico('dots')?></div><?php foreach(array_slice($properties,0,4) as $p):?><div class="activity-item"><div class="activity-icon <?=!empty($p['is_approved'])?'green':'amber'?>"><?=ico(!empty($p['is_approved'])?'check':'file')?></div><span><strong><?=!empty($p['is_approved'])?'Approval received':'Property submitted'?></strong><p><?=e($p['title'])?></p><small><?=e(date('M j, Y',strtotime($p['created_at'])))?></small></span></div><?php endforeach;?><?php if(!$properties):?><div class="simple-empty">Your latest portfolio updates will appear here.</div><?php endif;?></article></section><div class="admin-notice"><div><?=ico('shield')?></div><span><strong>Administrator announcement</strong><p>Only approved properties can be scheduled or published for bidding.</p></span><a href="?page=approvals">View details</a></div>
-<?php elseif($page==='properties'):?><section class="page-section"><div class="page-title"><div><p>PROPERTY MANAGEMENT</p><h1>My Properties</h1><span>Manage submissions, updates, and approval progress.</span></div><button class="primary" onclick="openForm()"><?=ico('plus')?> Submit property</button></div><div class="filter-row"><label class="search wide"><?=ico('search')?><input id="filterSearch" placeholder="Search by property name or location..."></label><select id="filterStatus"><option value="">All statuses</option><option>Pending</option><option>Approved</option><option>Rejected</option></select></div><article class="panel property-table"><div class="table-wrap"><table id="propertyTable"><thead><tr><th>PROPERTY</th><th>LOCATION</th><th>STARTING BID</th><th>APPROVAL STATUS</th><th>LAST UPDATED</th><th>ACTION</th></tr></thead><tbody><?php if(!$properties):?><tr><td colspan="6" class="empty-row">No properties submitted yet.</td></tr><?php endif;?><?php foreach($properties as $p):$st=!empty($p['is_approved'])?'Approved':(strtolower($p['status'])==='rejected'?'Rejected':'Pending');?><tr data-status="<?=$st?>"><td><strong><?=e($p['title'])?></strong><small class="subline">Property #<?=$p['id']?></small></td><td><?=e($p['location'])?></td><td><?=peso($p['price'])?></td><td><?=badge($st)?></td><td><?=e(date('M j, Y',strtotime($p['created_at'])))?></td><td><form class="logout-form" method="post" onsubmit="return confirm('Delete this property?')"><input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>"><input type="hidden" name="action" value="delete_property"><input type="hidden" name="property_id" value="<?=$p['id']?>"><button class="delete-action">Delete</button></form></td></tr><?php endforeach;?></tbody></table></div><div class="table-footer">Showing <?=count($properties)?> properties</div></article></section>
-<?php elseif($page==='approvals'):?><section class="page-section"><div class="page-title"><div><p>COMPLIANCE CENTER</p><h1>Approval Management</h1><span>Track review progress and respond to administrator feedback.</span></div></div><div class="approval-callout"><?=ico('shield',25)?><div><strong>Administrator approval is required</strong><p>Only approved properties can be scheduled or published for bidding. Approval decisions are made exclusively by authorized administrators.</p></div></div><div class="approval-grid"><?php foreach($properties as $p):$st=!empty($p['is_approved'])?'Approved':(strtolower($p['status'])==='rejected'?'Rejected':'Pending');?><article class="panel approval-card"><div class="approval-card-top"><div class="stat-icon <?=$st==='Approved'?'green':'amber'?>"><?=ico($st==='Approved'?'check':'clock')?></div><?=badge($st)?></div><h2><?=e($p['title'])?></h2><small>Submitted <?=e(date('d M Y',strtotime($p['created_at'])))?></small><div class="feedback"><strong>PROPERTY REVIEW STATUS</strong><p><?=$st==='Approved'?'This property is approved and can proceed to auction scheduling.':'Your property is awaiting administrator review.'?></p></div><a class="secondary" href="?page=properties">View details <?=ico('arrow')?></a></article><?php endforeach;?><?php if(!$properties):?><div class="simple-empty">No property submissions to review yet.</div><?php endif;?></div></section>
-<?php elseif($page==='auctions'||$page==='live'):?><section class="page-section"><div class="page-title"><div><p><?=$page==='live'?'LIVE AUCTION MONITOR':'AUCTION MANAGEMENT'?></p><h1><?=$titles[$page]?></h1><span>Review auction schedules and current bidding status.</span></div></div><?php if($page==='live'&&$featured):?><div class="live-hero"><span>CURRENT HIGHEST BID</span><strong><?=peso($highest)?></strong><p><?=ico('trend')?> <?=$bidTotal?> bids recorded</p><div><span><b><?=$bidTotal?></b>Total bids</span><span><b><?=count($active)?></b>Active auctions</span><span><b><?=count($auctions)?></b>All auctions</span></div></div><?php endif;?><article class="panel property-table"><div class="table-wrap"><table><thead><tr><th>PROPERTY</th><th>LOCATION</th><th>STARTING BID</th><th>CURRENT BID</th><th>STARTS</th><th>ENDS</th><th>STATUS</th></tr></thead><tbody><?php if(!$auctions):?><tr><td colspan="7" class="empty-row">No auctions have been created for your properties yet.</td></tr><?php endif;?><?php foreach($auctions as $a):?><tr><td><?=e($a['title'])?></td><td><?=e($a['location'])?></td><td><?=peso($a['starting_bid']??0)?></td><td><?=peso($a['current_bid']??$a['starting_bid']??0)?></td><td><?=e($a['start_time']??'—')?></td><td><?=e($a['end_time']??'—')?></td><td><?=badge(ucfirst($a['status']))?></td></tr><?php endforeach;?></tbody></table></div></article></section>
-<?php elseif($page==='results'):?><section class="page-section"><div class="page-title"><div><p>AUCTION PERFORMANCE</p><h1>Auction Results</h1><span>Review completed auctions for your properties.</span></div></div><article class="panel list-page"><?php $sold=array_filter($properties,fn($p)=>strtolower($p['status'])==='sold');if(!$sold)echo '<div class="simple-empty">Completed auction results will appear here once a property is sold.</div>';foreach($sold as $p):?><div class="list-row"><div class="list-icon"><?=ico('trophy')?></div><span><strong><?=e($p['title'])?></strong><p><?=e($p['location'])?></p></span><small><?=peso($p['price'])?> · Sold</small></div><?php endforeach;?></article></section>
-<?php else:?><section class="page-section"><div class="page-title"><div><p>SELLER PORTAL</p><h1>Notifications</h1><span>Stay updated on approvals, bids, schedules, and announcements.</span></div></div><article class="panel list-page"><?php foreach(array_slice($properties,0,8) as $p):?><div class="list-row"><div class="list-icon"><?=ico('bell')?></div><span><strong><?=!empty($p['is_approved'])?'Approval received':'Property submitted'?></strong><p><?=e($p['title'])?> · <?=!empty($p['is_approved'])?'Approved':'Awaiting review'?></p></span><small><?=e(date('M j, Y',strtotime($p['created_at'])))?></small></div><?php endforeach;?><?php if(!$properties):?><div class="simple-empty">You are all caught up. New updates will appear here.</div><?php endif;?></article></section><?php endif;?>
-</div></main></div>
-<div class="modal-layer" id="propertyModal" hidden><button class="modal-backdrop" onclick="closeForm()"></button><section class="modal"><div class="modal-head"><div><p>NEW SUBMISSION</p><h2>Submit property for bidding</h2><span>Complete the details below. All properties require approval.</span></div><button onclick="closeForm()" type="button"><?=ico('x')?></button></div><form method="post"><div class="form-grid"><label class="full">Property title<input name="title" required maxlength="150" placeholder="e.g. Bayside Family Residence"></label><label class="full">Property address<input name="location" required maxlength="255" placeholder="Street, city, province"></label><label>Lot area (sq m)<input name="lot_area" required type="number" min=".01" step=".01"></label><label>Floor area (sq m)<input name="floor_area" required type="number" min=".01" step=".01"></label><label>Starting bid price<input name="price" required type="number" min=".01" step=".01"></label><label class="full">Property description<textarea name="description" required></textarea></label></div><div class="form-notice"><?=ico('shield')?><p>Submitted properties remain unpublished until an administrator approves them.</p></div><div class="modal-actions"><button type="button" class="secondary" onclick="closeForm()">Cancel</button><button class="primary" type="submit"><?=ico('arrow')?> Submit for approval</button></div><input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>"></form></section></div>
-<script>function toggleMenu(){document.getElementById('sidebar').classList.toggle('sidebar-open')}function openForm(){document.getElementById('propertyModal').hidden=false;document.body.style.overflow='hidden'}function closeForm(){document.getElementById('propertyModal').hidden=true;document.body.style.overflow=''}const fs=document.getElementById('filterSearch'),st=document.getElementById('filterStatus');function filter(){document.querySelectorAll('#propertyTable tbody tr').forEach(r=>r.style.display=(!fs||r.innerText.toLowerCase().includes(fs.value.toLowerCase()))&&(!st||!st.value||r.dataset.status===st.value)?'':'none')}if(fs)fs.addEventListener('input',filter);if(st)st.addEventListener('change',filter);const gs=document.getElementById('globalSearch');if(gs)gs.addEventListener('keydown',e=>{if(e.key==='Enter')location.href='?page=properties&q='+encodeURIComponent(gs.value)});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeForm()});</script></body></html>
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title><?=e($titles[$page])?> | HomeBid</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=figma-2">
+</head>
+
+<body>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-mark"><?=ico('building',21)?></div>
+                <div><strong>HOME<span>BID</span></strong><small>SELLER PORTAL</small></div><button class="mobile-close"
+                    onclick="toggleMenu()"><?=ico('x')?></button>
+            </div>
+            <div class="workspace"><small>WORKSPACE</small><button><span
+                        class="avatar small"><?=e($initials)?></span><span><strong><?=e($account['username'])?></strong><small>Verified
+                            seller</small></span><?=ico('chevron',14)?></button></div>
+            <nav><small class="nav-label">MAIN MENU</small><?php foreach($nav as [$id,$label,$icon,$count]):?><a
+                    class="<?=$page===$id?'active':''?>"
+                    href="?page=<?=$id?>"><?=ico($icon)?><span><?=e($label)?></span><?php if($count!==''):?><b><?=e($count)?></b><?php endif;?></a><?php endforeach;?>
+            </nav>
+            <div class="support-card">
+                <div><?=ico('shield')?></div><strong>Need assistance?</strong>
+                <p>Our auction support team is ready to help.</p><a href="../index.php#contact">Contact support</a>
+            </div>
+            <div class="profile"><span
+                    class="avatar"><?=e($initials)?></span><span><strong><?=e($account['username'])?></strong><small><?=e($account['role'])?></small></span>
+                <form class="logout-form" method="post" action="../logout.php"><input type="hidden" name="csrf_token"
+                        value="<?=e(csrf_token())?>"><button title="Log out"><?=ico('dots')?></button></form>
+            </div>
+        </aside>
+        <main>
+            <header><button class="menu-button" onclick="toggleMenu()"><?=ico('menu')?></button>
+                <div class="breadcrumbs"><span>Seller
+                        Portal</span><?=ico('chevron',13)?><strong><?=e($titles[$page])?></strong></div>
+                <div class="header-actions"><label class="search"><?=ico('search')?><input id="globalSearch"
+                            placeholder="Search properties, auctions..."><kbd>⌘ K</kbd></label><a class="bell"
+                        href="?page=notifications"><?=ico('bell')?><span></span></a><button
+                        class="primary small-primary" onclick="openForm()"><?=ico('plus')?> <span>Add
+                            Property</span></button></div>
+            </header>
+            <div class="content">
+                <?php if($notice):?><div class="flash success"><?=e($notice)?></div><?php endif;?><?php if($error):?>
+                <div class="flash error"><?=e($error)?></div><?php endif;?>
+                <?php if($page==='overview'):?><section class="welcome">
+                    <div>
+                        <p><?=strtoupper(date('l, d F'))?></p>
+                        <h1>Good morning, <?=e($account['username'])?>.</h1><span>Here’s what’s happening across your
+                            property portfolio today.</span>
+                    </div>
+                    <div class="welcome-actions"><a class="secondary" href="?page=results"><?=ico('file')?> Export
+                            report</a><button class="primary" onclick="openForm()"><?=ico('plus')?> Submit
+                            property</button></div>
+                </section>
+                <section class="stats-grid">
+                    <?php $cards=[['Total Properties',$stats['total'],'Your submitted listings','building','navy'],['Pending Approval',$stats['pending'],'Awaiting administrator review','clock','amber'],['Approved',$stats['approved'],'Approved property listings','check','green'],['Ongoing Biddings',count($active),$bidTotal.' total bids','pulse','blue'],['Completed',$stats['sold'],'Successfully completed','trophy','purple'],['Rejected',$stats['rejected'],'Review administrator feedback','x','red']];foreach($cards as [$l,$v,$n,$i,$t]):?>
+                    <article class="stat-card">
+                        <div class="stat-icon <?=$t?>"><?=ico($i)?></div>
+                        <div class="stat-top"><span><?=e($l)?></span><?=ico('dots')?></div>
+                        <strong><?=e($v)?></strong><small><?=e($n)?></small>
+                    </article><?php endforeach;?></section>
+                <section class="dashboard-grid">
+                    <article class="panel portfolio">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Portfolio overview</h2>
+                                <p>Submission and auction performance</p>
+                            </div><select>
+                                <option>All time</option>
+                            </select>
+                        </div>
+                        <div class="chart-metrics"><span><i class="gold"></i>Auction
+                                value<strong><?=peso(array_sum(array_map(fn($a)=>(float)($a['current_bid']??$a['starting_bid']??0),$auctions)))?></strong></span><span><i></i>Properties
+                                sold<strong><?=$stats['sold']?></strong></span>
+                            <div><b><?=$stats['total']?round($stats['approved']/$stats['total']*100):0?>%</b> approval
+                                rate</div>
+                        </div>
+                        <div class="chart">
+                            <div class="y-labels">
+                                <span>₱800k</span><span>₱600k</span><span>₱400k</span><span>₱200k</span><span>₱0</span>
+                            </div>
+                            <div class="chart-area">
+                                <div class="grid-lines"><i></i><i></i><i></i><i></i><i></i></div><svg
+                                    viewBox="0 0 640 190" preserveAspectRatio="none">
+                                    <defs>
+                                        <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0" stop-color="#bd934d" stop-opacity=".22" />
+                                            <stop offset="1" stop-color="#bd934d" stop-opacity="0" />
+                                        </linearGradient>
+                                    </defs>
+                                    <path
+                                        d="M0 154 C70 139 85 100 130 111 S210 146 260 89 S340 42 390 72 S480 108 520 51 S595 20 640 36 L640 190 L0 190Z"
+                                        fill="url(#area)" />
+                                    <path
+                                        d="M0 154 C70 139 85 100 130 111 S210 146 260 89 S340 42 390 72 S480 108 520 51 S595 20 640 36"
+                                        fill="none" stroke="#b78c43" stroke-width="3" />
+                                </svg>
+                                <div class="x-labels">
+                                    <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="panel live-card">
+                        <div class="panel-head">
+                            <div><span class="live-label"><i></i> LIVE AUCTION</span>
+                                <h2><?=e($featured['title']??'No active auction yet')?></h2>
+                                <p><?=$featured?'Auction status: '.e($featured['status']):'An approved property can be scheduled for auction.'?>
+                                </p>
+                            </div><a class="icon-button" href="?page=live"><?=ico('arrow')?></a>
+                        </div>
+                        <div class="bid-amount"><span>CURRENT HIGHEST
+                                BID</span><strong><?=peso($highest)?></strong><small><?=ico('trend',14)?> <?=$bidTotal?>
+                                bids recorded for your properties</small></div>
+                        <div class="bid-stats"><span><?=ico('users')?><b><?=$bidTotal?></b><small>Total
+                                    bids</small></span><span><?=ico('gavel')?><b><?=count($auctions)?></b><small>Auctions</small></span><span><?=ico('clock')?><b><?=count($active)?></b><small>Active
+                                    now</small></span></div><a class="dark-button" href="?page=live">Monitor live
+                            bidding <?=ico('arrow')?></a>
+                    </article>
+                </section>
+                <section class="bottom-grid">
+                    <article class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Recent properties</h2>
+                                <p>Your latest property submissions</p>
+                            </div><a class="text-button" href="?page=properties">View all <?=ico('arrow',14)?></a>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>PROPERTY</th>
+                                        <th>STARTING BID</th>
+                                        <th>STATUS</th>
+                                        <th>UPDATED</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody><?php if(!$properties):?><tr>
+                                        <td colspan="5" class="empty-row">No properties submitted yet.</td>
+                                    </tr><?php endif;?><?php foreach(array_slice($properties,0,4) as $p):?><tr>
+                                        <td>
+                                            <div class="property-cell">
+                                                <div class="list-icon"><?=ico('home')?></div>
+                                                <span><strong><?=e($p['title'])?></strong><small><?=e($p['location'])?></small></span>
+                                            </div>
+                                        </td>
+                                        <td><strong><?=peso($p['price'])?></strong></td>
+                                        <td><?=badge(!empty($p['is_approved'])?'Approved':(strtolower($p['status'])==='rejected'?'Rejected':'Pending'))?>
+                                        </td>
+                                        <td><?=e(date('M j, Y',strtotime($p['created_at'])))?></td>
+                                        <td><a class="row-button" href="?page=properties"><?=ico('chevron')?></a></td>
+                                    </tr><?php endforeach;?></tbody>
+                            </table>
+                        </div>
+                    </article>
+                    <article class="panel activity">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Recent activity</h2>
+                                <p>Latest portfolio updates</p>
+                            </div><?=ico('dots')?>
+                        </div><?php foreach(array_slice($properties,0,4) as $p):?><div class="activity-item">
+                            <div class="activity-icon <?=!empty($p['is_approved'])?'green':'amber'?>">
+                                <?=ico(!empty($p['is_approved'])?'check':'file')?></div>
+                            <span><strong><?=!empty($p['is_approved'])?'Approval received':'Property submitted'?></strong>
+                                <p><?=e($p['title'])?></p>
+                                <small><?=e(date('M j, Y',strtotime($p['created_at'])))?></small>
+                            </span>
+                        </div><?php endforeach;?><?php if(!$properties):?><div class="simple-empty">Your latest
+                            portfolio updates will appear here.</div><?php endif;?>
+                    </article>
+                </section>
+                <div class="admin-notice">
+                    <div><?=ico('shield')?></div><span><strong>Administrator announcement</strong>
+                        <p>Only approved properties can be scheduled or published for bidding.</p>
+                    </span><a href="?page=approvals">View details</a>
+                </div>
+                <?php elseif($page==='properties'):?><section class="page-section">
+                    <div class="page-title">
+                        <div>
+                            <p>PROPERTY MANAGEMENT</p>
+                            <h1>My Properties</h1><span>Manage submissions, updates, and approval progress.</span>
+                        </div><button class="primary" onclick="openForm()"><?=ico('plus')?> Submit property</button>
+                    </div>
+                    <div class="filter-row"><label class="search wide"><?=ico('search')?><input id="filterSearch"
+                                placeholder="Search by property name or location..."></label><select id="filterStatus">
+                            <option value="">All statuses</option>
+                            <option>Pending</option>
+                            <option>Approved</option>
+                            <option>Rejected</option>
+                        </select></div>
+                    <article class="panel property-table">
+                        <div class="table-wrap">
+                            <table id="propertyTable">
+                                <thead>
+                                    <tr>
+                                        <th>PROPERTY</th>
+                                        <th>LOCATION</th>
+                                        <th>STARTING BID</th>
+                                        <th>APPROVAL STATUS</th>
+                                        <th>LAST UPDATED</th>
+                                        <th>ACTION</th>
+                                    </tr>
+                                </thead>
+                                <tbody><?php if(!$properties):?><tr>
+                                        <td colspan="6" class="empty-row">No properties submitted yet.</td>
+                                    </tr>
+                                    <?php endif;?><?php foreach($properties as $p):$st=!empty($p['is_approved'])?'Approved':(strtolower($p['status'])==='rejected'?'Rejected':'Pending');?>
+                                    <tr data-status="<?=$st?>">
+                                        <td><strong><?=e($p['title'])?></strong><small class="subline">Property
+                                                #<?=$p['id']?></small></td>
+                                        <td><?=e($p['location'])?></td>
+                                        <td><?=peso($p['price'])?></td>
+                                        <td><?=badge($st)?></td>
+                                        <td><?=e(date('M j, Y',strtotime($p['created_at'])))?></td>
+                                        <td>
+                                            <form class="logout-form" method="post"
+                                                onsubmit="return confirm('Delete this property?')"><input type="hidden"
+                                                    name="csrf_token" value="<?=e(csrf_token())?>"><input type="hidden"
+                                                    name="action" value="delete_property"><input type="hidden"
+                                                    name="property_id" value="<?=$p['id']?>"><button
+                                                    class="delete-action">Delete</button></form>
+                                        </td>
+                                    </tr><?php endforeach;?></tbody>
+                            </table>
+                        </div>
+                        <div class="table-footer">Showing <?=count($properties)?> properties</div>
+                    </article>
+                </section>
+                <?php elseif($page==='approvals'):?><section class="page-section">
+                    <div class="page-title">
+                        <div>
+                            <p>COMPLIANCE CENTER</p>
+                            <h1>Approval Management</h1><span>Track review progress and respond to administrator
+                                feedback.</span>
+                        </div>
+                    </div>
+                    <div class="approval-callout"><?=ico('shield',25)?><div><strong>Administrator approval is
+                                required</strong>
+                            <p>Only approved properties can be scheduled or published for bidding. Approval decisions
+                                are made exclusively by authorized administrators.</p>
+                        </div>
+                    </div>
+                    <div class="approval-grid">
+                        <?php foreach($properties as $p):$st=!empty($p['is_approved'])?'Approved':(strtolower($p['status'])==='rejected'?'Rejected':'Pending');?>
+                        <article class="panel approval-card">
+                            <div class="approval-card-top">
+                                <div class="stat-icon <?=$st==='Approved'?'green':'amber'?>">
+                                    <?=ico($st==='Approved'?'check':'clock')?></div><?=badge($st)?>
+                            </div>
+                            <h2><?=e($p['title'])?></h2><small>Submitted
+                                <?=e(date('d M Y',strtotime($p['created_at'])))?></small>
+                            <div class="feedback"><strong>PROPERTY REVIEW STATUS</strong>
+                                <p><?=$st==='Approved'?'This property is approved and can proceed to auction scheduling.':'Your property is awaiting administrator review.'?>
+                                </p>
+                            </div><a class="secondary" href="?page=properties">View details <?=ico('arrow')?></a>
+                        </article><?php endforeach;?><?php if(!$properties):?><div class="simple-empty">No property
+                            submissions to review yet.</div><?php endif;?></div>
+                </section>
+                <?php elseif($page==='auctions'||$page==='live'):?><section class="page-section">
+                    <div class="page-title">
+                        <div>
+                            <p><?=$page==='live'?'LIVE AUCTION MONITOR':'AUCTION MANAGEMENT'?></p>
+                            <h1><?=$titles[$page]?></h1><span>Review auction schedules and current bidding
+                                status.</span>
+                        </div>
+                    </div><?php if($page==='live'&&$featured):?><div class="live-hero"><span>CURRENT HIGHEST
+                            BID</span><strong><?=peso($highest)?></strong>
+                        <p><?=ico('trend')?> <?=$bidTotal?> bids recorded</p>
+                        <div><span><b><?=$bidTotal?></b>Total bids</span><span><b><?=count($active)?></b>Active
+                                auctions</span><span><b><?=count($auctions)?></b>All auctions</span></div>
+                    </div><?php endif;?><article class="panel property-table">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>PROPERTY</th>
+                                        <th>LOCATION</th>
+                                        <th>STARTING BID</th>
+                                        <th>CURRENT BID</th>
+                                        <th>STARTS</th>
+                                        <th>ENDS</th>
+                                        <th>STATUS</th>
+                                    </tr>
+                                </thead>
+                                <tbody><?php if(!$auctions):?><tr>
+                                        <td colspan="7" class="empty-row">No auctions have been created for your
+                                            properties yet.</td>
+                                    </tr><?php endif;?><?php foreach($auctions as $a):?><tr>
+                                        <td><?=e($a['title'])?></td>
+                                        <td><?=e($a['location'])?></td>
+                                        <td><?=peso($a['starting_bid']??0)?></td>
+                                        <td><?=peso($a['current_bid']??$a['starting_bid']??0)?></td>
+                                        <td><?=e($a['start_time']??'—')?></td>
+                                        <td><?=e($a['end_time']??'—')?></td>
+                                        <td><?=badge(ucfirst($a['status']))?></td>
+                                    </tr><?php endforeach;?></tbody>
+                            </table>
+                        </div>
+                    </article>
+                </section>
+                <?php elseif($page==='results'):?><section class="page-section">
+                    <div class="page-title">
+                        <div>
+                            <p>AUCTION PERFORMANCE</p>
+                            <h1>Auction Results</h1><span>Review completed auctions for your properties.</span>
+                        </div>
+                    </div>
+                    <article class="panel list-page">
+                        <?php $sold=array_filter($properties,fn($p)=>strtolower($p['status'])==='sold');if(!$sold)echo '<div class="simple-empty">Completed auction results will appear here once a property is sold.</div>';foreach($sold as $p):?>
+                        <div class="list-row">
+                            <div class="list-icon"><?=ico('trophy')?></div><span><strong><?=e($p['title'])?></strong>
+                                <p><?=e($p['location'])?></p>
+                            </span><small><?=peso($p['price'])?> · Sold</small>
+                        </div><?php endforeach;?></article>
+                </section>
+                <?php else:?><section class="page-section">
+                    <div class="page-title">
+                        <div>
+                            <p>SELLER PORTAL</p>
+                            <h1>Notifications</h1><span>Stay updated on approvals, bids, schedules, and
+                                announcements.</span>
+                        </div>
+                    </div>
+                    <article class="panel list-page"><?php foreach(array_slice($properties,0,8) as $p):?><div
+                            class="list-row">
+                            <div class="list-icon"><?=ico('bell')?></div>
+                            <span><strong><?=!empty($p['is_approved'])?'Approval received':'Property submitted'?></strong>
+                                <p><?=e($p['title'])?> · <?=!empty($p['is_approved'])?'Approved':'Awaiting review'?></p>
+                            </span><small><?=e(date('M j, Y',strtotime($p['created_at'])))?></small>
+                        </div><?php endforeach;?><?php if(!$properties):?><div class="simple-empty">You are all caught
+                            up. New updates will appear here.</div><?php endif;?></article>
+                </section><?php endif;?>
+            </div>
+        </main>
+    </div>
+    <div class="modal-layer" id="propertyModal" hidden><button class="modal-backdrop" onclick="closeForm()"></button>
+        <section class="modal">
+            <div class="modal-head">
+                <div>
+                    <p>NEW SUBMISSION</p>
+                    <h2>Submit property for bidding</h2><span>Complete the details below. All properties require
+                        approval.</span>
+                </div><button onclick="closeForm()" type="button"><?=ico('x')?></button>
+            </div>
+            <form method="post">
+                <div class="form-grid"><label class="full">Property title<input name="title" required maxlength="150"
+                            placeholder="e.g. Bayside Family Residence"></label><label class="full">Property
+                        address<input name="location" required maxlength="255"
+                            placeholder="Street, city, province"></label><label>Lot area (sq m)<input name="lot_area"
+                            required type="number" min=".01" step=".01"></label><label>Floor area (sq m)<input
+                            name="floor_area" required type="number" min=".01" step=".01"></label><label>Starting bid
+                        price<input name="price" required type="number" min=".01" step=".01"></label><label
+                        class="full">Property description<textarea name="description" required></textarea></label></div>
+                <div class="form-notice"><?=ico('shield')?><p>Submitted properties remain unpublished until an
+                        administrator approves them.</p>
+                </div>
+                <div class="modal-actions"><button type="button" class="secondary"
+                        onclick="closeForm()">Cancel</button><button class="primary" type="submit"><?=ico('arrow')?>
+                        Submit for approval</button></div><input type="hidden" name="csrf_token"
+                    value="<?=e(csrf_token())?>">
+            </form>
+        </section>
+    </div>
+    <script>
+    function toggleMenu() {
+        document.getElementById('sidebar').classList.toggle('sidebar-open')
+    }
+
+    function openForm() {
+        document.getElementById('propertyModal').hidden = false;
+        document.body.style.overflow = 'hidden'
+    }
+
+    function closeForm() {
+        document.getElementById('propertyModal').hidden = true;
+        document.body.style.overflow = ''
+    }
+    const fs = document.getElementById('filterSearch'),
+        st = document.getElementById('filterStatus');
+
+    function filter() {
+        document.querySelectorAll('#propertyTable tbody tr').forEach(r => r.style.display = (!fs || r.innerText
+            .toLowerCase().includes(fs.value.toLowerCase())) && (!st || !st.value || r.dataset.status === st
+            .value) ? '' : 'none')
+    }
+    if (fs) fs.addEventListener('input', filter);
+    if (st) st.addEventListener('change', filter);
+    const gs = document.getElementById('globalSearch');
+    if (gs) gs.addEventListener('keydown', e => {
+        if (e.key === 'Enter') location.href = '?page=properties&q=' + encodeURIComponent(gs.value)
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeForm()
+    });
+    </script>
+</body>
+
+</html>
