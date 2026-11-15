@@ -2,36 +2,139 @@
 declare(strict_types=1);
 
 /**
- * HomeBid database connection.
- * XAMPP defaults: database=house_and_lot_db, username=root, password=""
- * Override with DB_HOST, DB_NAME, DB_USER and DB_PASS environment variables.
+ * HomeBid MySQLi database connection.
+ * XAMPP defaults: database=house_and_lot_db, user=root, blank password.
+ * Optional environment overrides: DB_HOST, DB_NAME, DB_USER, DB_PASS.
  */
+
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+final class MySQLiStatement
+{
+    private mysqli_stmt $stmt;
+    private ?mysqli_result $result = null;
+
+    public function __construct(mysqli_stmt $stmt) { $this->stmt = $stmt; }
+
+    public function execute(array $params = []): bool
+    {
+        if ($params) {
+            $types = '';
+            $values = [];
+            foreach ($params as $value) {
+                if (is_int($value)) $types .= 'i';
+                elseif (is_float($value)) $types .= 'd';
+                elseif (is_null($value)) $types .= 's';
+                else $types .= 's';
+                $values[] = $value;
+            }
+            $refs = [];
+            foreach ($values as $key => &$value) $refs[$key] = &$value;
+            unset($value);
+            $this->stmt->bind_param($types, ...$refs);
+        }
+        $ok = $this->stmt->execute();
+        $this->result = $this->stmt->get_result() ?: null;
+        return $ok;
+    }
+
+    public function fetch(int $mode = MYSQLI_ASSOC): array|false
+    {
+        return $this->result ? $this->result->fetch_assoc() : false;
+    }
+
+    public function fetchAll(int $mode = MYSQLI_ASSOC): array
+    {
+        return $this->result ? $this->result->fetch_all(MYSQLI_ASSOC) : [];
+    }
+
+    public function fetchColumn(int $column = 0): mixed
+    {
+        $row = $this->fetch();
+        if ($row === false) return false;
+        $values = array_values($row);
+        return $values[$column] ?? false;
+    }
+
+    public function rowCount(): int { return $this->stmt->affected_rows; }
+}
+
+final class MySQLiConnection
+{
+    private mysqli $link;
+
+    public function __construct(mysqli $link) { $this->link = $link; }
+
+    public function prepare(string $sql): MySQLiStatement
+    {
+        return new MySQLiStatement($this->link->prepare($sql));
+    }
+
+    public function query(string $sql): MySQLiStatement
+    {
+        $result = $this->link->query($sql);
+        if ($result instanceof mysqli_result) {
+            // Wrap a direct query result in the same small result interface.
+            return new MySQLiStatementResult($result);
+        }
+        return new MySQLiStatement($this->link->stmt_init());
+    }
+
+    public function lastInsertId(): string { return (string)$this->link->insert_id; }
+}
+
+final class MySQLiStatementResult extends MySQLiStatement
+{
+    private mysqli_result $directResult;
+
+    public function __construct(mysqli_result $result)
+    {
+        // Parent is unused for direct SELECT results.
+        $this->directResult = $result;
+        $reflection = new ReflectionClass(MySQLiStatement::class);
+        $property = $reflection->getProperty('stmt');
+        $property->setAccessible(true);
+        $property->setValue($this, new mysqli_stmt());
+    }
+
+    public function fetch(int $mode = MYSQLI_ASSOC): array|false
+    {
+        return $this->directResult->fetch_assoc();
+    }
+
+    public function fetchAll(int $mode = MYSQLI_ASSOC): array
+    {
+        return $this->directResult->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function fetchColumn(int $column = 0): mixed
+    {
+        $row = $this->fetch();
+        if ($row === false) return false;
+        return array_values($row)[$column] ?? false;
+    }
+}
+
 $host = getenv('DB_HOST') ?: '127.0.0.1';
 $name = getenv('DB_NAME') ?: 'house_and_lot_db';
 $user = getenv('DB_USER') ?: 'root';
 $pass = getenv('DB_PASS') ?: '';
-$charset = 'utf8mb4';
-
-$dsn = "mysql:host={$host};dbname={$name};charset={$charset}";
-$options = [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES => false,
-];
 
 try {
-    $pdo = new PDO($dsn, $user, $pass, $options);
-} catch (PDOException $e) {
-    error_log('HomeBid database connection failed: ' . $e->getMessage());
-    if (defined('HOMEBID_ALLOW_OFFLINE_DB') && HOMEBID_ALLOW_OFFLINE_DB) {
-        $pdo = null;
-    } else {
-        http_response_code(500);
-        if (basename($_SERVER['SCRIPT_NAME'] ?? '') === 'login-agent.php') {
-            header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['ok' => false, 'message' => 'Database connection failed. Make sure MySQL is running and house_and_lot_db is imported in phpMyAdmin.']);
-            exit;
-        }
-        exit('Database connection failed. Check config/db.php and confirm that MySQL is running and the house_and_lot_db database has been imported.');
+    $mysqli = new mysqli($host, $user, $pass, $name);
+    $mysqli->set_charset('utf8mb4');
+    $conn = new MySQLiConnection($mysqli);
+} catch (mysqli_sql_exception $e) {
+    error_log('HomeBid MySQLi connection failed: ' . $e->getMessage());
+    http_response_code(500);
+    if (basename($_SERVER['SCRIPT_NAME'] ?? '') === 'login-agent.php') {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'message' => 'Database connection failed. Make sure MySQL is running and house_and_lot_db is imported in phpMyAdmin.']);
+        exit;
     }
+    exit('Database connection failed. Check config/db.php and confirm that MySQL is running and house_and_lot_db exists.');
 }
+
+// Backward-compatible alias while the remaining application files are migrated.
+// Both variables use the MySQLi implementation above; PDO is not used.
+$pdo = $conn;
