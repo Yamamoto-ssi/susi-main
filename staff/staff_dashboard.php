@@ -10,22 +10,22 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  $id=filter_input(INPUT_POST,'property_id',FILTER_VALIDATE_INT);
  $decision=$_POST['decision']??'';
  if($id && $decision==='approve'){
-  $q=$pdo->prepare('UPDATE properties SET is_approved=1 WHERE id=? AND is_approved=0');
+  $q=$conn->prepare('UPDATE properties SET is_approved=1 WHERE id=? AND is_approved=0');
   $q->execute([$id]);
   if($q->rowCount()){
-   $log=$pdo->prepare('INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)');
+   $log=$conn->prepare('INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)');
    $log->execute([$staffId,'Approved property listing','property',$id,$_SERVER['REMOTE_ADDR']??null]);
    $message='Property approved successfully.';
   } else { $error='This listing was already reviewed or could not be found.'; }
  }
 }
-$counts=$pdo->query("SELECT COUNT(*) total,COALESCE(SUM(is_approved=0),0) pending,COALESCE(SUM(is_approved=1),0) approved,COALESCE(SUM(status='Sold'),0) sold FROM properties")->fetch();
-$auctionCounts=$pdo->query("SELECT COUNT(*) total,COALESCE(SUM(status='active'),0) active FROM auctions")->fetch();
-$bidCount=(int)$pdo->query('SELECT COUNT(*) FROM bids')->fetchColumn();
-$pending=$pdo->query('SELECT p.*,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 ORDER BY p.created_at ASC')->fetchAll();
-$recent=$pdo->query('SELECT p.*,u.username FROM properties p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 12')->fetchAll();
-$auctions=$pdo->query('SELECT a.*,p.title FROM auctions a JOIN properties p ON p.id=a.property_id ORDER BY a.created_at DESC LIMIT 12')->fetchAll();
-$logs=$pdo->query('SELECT l.*,u.username FROM activity_logs l LEFT JOIN users u ON u.id=l.user_id ORDER BY l.created_at DESC LIMIT 12')->fetchAll();
+$counts=$conn->query("SELECT COUNT(*) total,COALESCE(SUM(is_approved=0),0) pending,COALESCE(SUM(is_approved=1),0) approved,COALESCE(SUM(status='Sold'),0) sold FROM properties")->fetch();
+$auctionCounts=$conn->query("SELECT COUNT(*) total,COALESCE(SUM(status='active'),0) active FROM auctions")->fetch();
+$bidCount=(int)$conn->query('SELECT COUNT(*) FROM bids')->fetchColumn();
+$pending=$conn->query('SELECT p.*,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 ORDER BY p.created_at ASC')->fetchAll();
+$recent=$conn->query('SELECT p.*,u.username FROM properties p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 12')->fetchAll();
+$auctions=$conn->query('SELECT a.*,p.title FROM auctions a JOIN properties p ON p.id=a.property_id ORDER BY a.created_at DESC LIMIT 12')->fetchAll();
+$logs=$conn->query('SELECT l.*,u.username FROM activity_logs l LEFT JOIN users u ON u.id=l.user_id ORDER BY l.created_at DESC LIMIT 12')->fetchAll();
 function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
 ?>
 <!doctype html>
