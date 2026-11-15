@@ -47,7 +47,12 @@ function homebid_money($amount): string {
     <link
         href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css">\n<style>
+        .staff-login-link { color: inherit; font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; margin-right: 4px; }
+        .staff-login-link:hover { color: #d97706; }
+        @media (max-width: 760px) { .staff-login-link { display: inline-block; } }
+    </style>
+
 </head>
 
 <body>
@@ -64,6 +69,7 @@ function homebid_money($amount): string {
                 <a href="#contact">Contact</a>
             </nav>
             <div class="nav-actions">
+                <a class="staff-login-link" href="staff-login.php">Staff / Admin</a>
                 <button class="btn btn-gold btn-small" data-modal="signup">Sign Up</button>
                 <button class="btn btn-outline btn-small" data-modal="login">Log In</button>
             </div>
