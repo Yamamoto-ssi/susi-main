@@ -27,6 +27,11 @@ try {
         $pdo = null;
     } else {
         http_response_code(500);
+        if (basename($_SERVER['SCRIPT_NAME'] ?? '') === 'login-agent.php') {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['ok' => false, 'message' => 'Database connection failed. Make sure MySQL is running and house_and_lot_db is imported in phpMyAdmin.']);
+            exit;
+        }
         exit('Database connection failed. Check config/db.php and confirm that MySQL is running and the house_and_lot_db database has been imported.');
     }
 }
