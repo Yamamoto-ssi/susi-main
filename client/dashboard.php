@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
   }
  }
 }
-$q=$pdo->prepare("SELECT COUNT(*) total, COALESCE(SUM(is_approved=0),0) pending, COALESCE(SUM(is_approved=1),0) approved, COALESCE(SUM(status='Sold'),0) sold FROM properties WHERE user_id=?");
+$q=$pdo->prepare("SELECT COUNT(*) total, COALESCE(SUM(is_approved=0),0) pending, COALESCE(SUM(is_approved=1),0) approved, COALESCE(SUM(status='Sold'),0) sold, COALESCE(SUM(status='Rejected'),0) rejected FROM properties WHERE user_id=?");
 $q->execute([$userId]); $stats=$q->fetch();
 $q=$pdo->prepare("SELECT p.*,(SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count FROM properties p WHERE p.user_id=? ORDER BY p.created_at DESC");
 $q->execute([$userId]); $properties=$q->fetchAll();
@@ -94,7 +94,7 @@ function money($n){return '₱'.number_format((float)$n,2);}
   <article class="stat-card"><div class="stat-icon green">✓</div><div class="stat-top">Approved <span>•••</span></div><strong><?=(int)$stats['approved']?></strong><small>Authorized property listings</small></article>
   <article class="stat-card"><div class="stat-icon blue">⌁</div><div class="stat-top">Ongoing Biddings <span>•••</span></div><strong><?=count(array_filter($auctions,fn($a)=>strtolower((string)$a['status'])==='active'))?></strong><small>Currently active auctions</small></article>
   <article class="stat-card"><div class="stat-icon purple">♜</div><div class="stat-top">Completed / Sold <span>•••</span></div><strong><?=(int)$stats['sold']?></strong><small>Successfully completed listings</small></article>
-  <article class="stat-card"><div class="stat-icon red">×</div><div class="stat-top">Rejected <span>•••</span></div><strong><?=isset($stats['rejected'])?(int)$stats['rejected']:0?></strong><small>Listings needing your attention</small></article>
+  <article class="stat-card"><div class="stat-icon red">×</div><div class="stat-top">Rejected <span>•••</span></div><strong><?=(int)$stats['rejected']?></strong><small>Listings needing your attention</small></article>
  </section>
  <section class="dashboard-grid">
   <article class="panel portfolio"><div class="panel-head"><div><h2>Portfolio overview</h2><p>Property submission and auction summary</p></div><span class="period-tag">All time</span></div>
@@ -103,7 +103,7 @@ function money($n){return '₱'.number_format((float)$n,2);}
   </article>
   <article class="panel live-card"><div class="panel-head"><div><span class="live-label">AUCTION ACTIVITY</span><h2><?=count($auctions)?> linked auctions</h2><p>Auctions connected to your properties</p></div><span class="auction-mark">⚒</span></div>
    <?php if($auctions):$featuredAuction=$auctions[0];?><div class="bid-amount"><span>LATEST AUCTION</span><strong><?=h($featuredAuction['title'])?></strong><small><?=h(ucfirst((string)$featuredAuction['status']))?> · Current bid <?=money($featuredAuction['current_bid'])?></small></div><?php else:?><div class="empty-auction">No auctions have been created for your listings yet.</div><?php endif;?>
-   <div class="bid-stats"><span><b><?=count($auctions)?></b><small>Total auctions</small></span><span><b><?=array_sum(array_map(fn($a)=>0,$auctions))?></b><small>Bid count shown below</small></span></div><a class="dark-button" href="#auctions">View auction activity <span>→</span></a>
+   <div class="bid-stats"><span><b><?=count($auctions)?></b><small>Total auctions</small></span><span><b><?=count(array_filter($auctions,fn($a)=>strtolower((string)$a['status'])==='active'))?></b><small>Active auctions</small></span></div><a class="dark-button" href="#auctions">View auction activity <span>→</span></a>
   </article>
  </section>
  <section class="bottom-grid">
