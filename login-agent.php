@@ -33,16 +33,16 @@ try {
         $name = trim((string)($_POST['name'] ?? ''));
         if ($name === '' || strlen($password) < 8) respond(422, ['ok'=>false,'message'=>'Enter your name and a password with at least 8 characters.']);
         $username = function_exists('mb_substr') ? mb_substr($name, 0, 50) : substr($name, 0, 50);
-        $check = $pdo->prepare('SELECT id FROM users WHERE email=? OR username=? LIMIT 1');
+        $check = $conn->prepare('SELECT id FROM users WHERE email=? OR username=? LIMIT 1');
         $check->execute([$email, $username]);
         if ($check->fetch()) respond(409, ['ok'=>false,'message'=>'That email or username is already registered.']);
-        $insert = $pdo->prepare("INSERT INTO users (username,email,password,role,is_verified) VALUES (?,?,?,'Buyer',0)");
+        $insert = $conn->prepare("INSERT INTO users (username,email,password,role,is_verified) VALUES (?,?,?,'Buyer',0)");
         $insert->execute([$username,$email,password_hash($password,PASSWORD_DEFAULT)]);
-        $_SESSION['user_id']=(int)$pdo->lastInsertId(); $_SESSION['role']='Buyer'; $_SESSION['username']=$username;
+        $_SESSION['user_id']=(int)$conn->lastInsertId(); $_SESSION['role']='Buyer'; $_SESSION['username']=$username;
         respond(200,['ok'=>true,'message'=>'Account created.','redirect'=>'buyer/dashboard.php']);
     }
 
-    $q = $pdo->prepare('SELECT id,username,password,role FROM users WHERE email=? LIMIT 1');
+    $q = $conn->prepare('SELECT id,username,password,role FROM users WHERE email=? LIMIT 1');
     $q->execute([$email]);
     $account = $q->fetch();
     if (!$account) respond(401,['ok'=>false,'message'=>'Email or password is incorrect.']);
@@ -50,7 +50,7 @@ try {
     $valid = password_verify($password, $stored);
     if (!$valid && $stored !== '' && !str_starts_with($stored, '$') && hash_equals($stored, $password)) {
         $valid = true;
-        $up = $pdo->prepare('UPDATE users SET password=? WHERE id=?');
+        $up = $conn->prepare('UPDATE users SET password=? WHERE id=?');
         $up->execute([password_hash($password,PASSWORD_DEFAULT),$account['id']]);
     }
     if (!$valid) respond(401,['ok'=>false,'message'=>'Email or password is incorrect.']);
