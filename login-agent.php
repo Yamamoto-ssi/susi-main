@@ -39,7 +39,7 @@ try {
         $insert = $pdo->prepare("INSERT INTO users (username,email,password,role,is_verified) VALUES (?,?,?,'Buyer',0)");
         $insert->execute([$username,$email,password_hash($password,PASSWORD_DEFAULT)]);
         $_SESSION['user_id']=(int)$pdo->lastInsertId(); $_SESSION['role']='Buyer'; $_SESSION['username']=$username;
-        respond(200,['ok'=>true,'message'=>'Account created.','redirect'=>'client/dashboard.php']);
+        respond(200,['ok'=>true,'message'=>'Account created.','redirect'=>'buyer/dashboard.php']);
     }
 
     $q = $pdo->prepare('SELECT id,username,password,role FROM users WHERE email=? LIMIT 1');
@@ -64,7 +64,8 @@ try {
     }
     if ($role==='Administrator') $redirect='admin/dashboard.php';
     elseif ($role==='Staff') $redirect='staff/dashboard.php';
-    elseif ($role==='Client'||$role==='Buyer') $redirect='client/dashboard.php';
+    elseif ($role==='Buyer') $redirect='buyer/dashboard.php';
+    elseif ($role==='Client') $redirect='client/dashboard.php';
     else respond(403,['ok'=>false,'message'=>'Your account role is not configured for dashboard access. Contact an administrator.']);
 
     session_regenerate_id(true);
