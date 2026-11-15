@@ -128,23 +128,326 @@ try {
 }
 $nav=[['dashboard.php','Dashboard','dashboard'],['approvals.php','Approvals','approvals'],['properties.php','Properties','properties'],['bidding.php','Bidding','bidding'],['staff.php','Staff','staff'],['buyers.php','Buyers','buyers'],['reports.php','Reports','reports'],['notification.php','Notifications','notification'],['roles_sec.php','Roles & Security','roles_sec']];
 ?>
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=sm_h($pageTitle)?> | HomeBid Staff</title><link rel="stylesheet" href="style_admin.css"><style>
-.module-main{flex:1;min-width:0;height:100vh;overflow:auto}.module-side{min-height:100vh;overflow:auto}.module-content{max-width:1450px;margin:auto;padding:30px}.module-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px}.module-head h1{font-size:26px}.module-sub{color:#64748b;margin-top:6px}.module-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}.module-stat{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px}.module-stat small{color:#64748b}.module-stat strong{display:block;font-size:25px;margin-top:8px}.module-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:18px}.module-scroll{overflow:auto}.module-table{width:100%;border-collapse:collapse;min-width:760px}.module-table th,.module-table td{text-align:left;padding:12px;border-bottom:1px solid #e2e8f0;font-size:13px;vertical-align:top}.module-table th{font-size:11px;color:#64748b;text-transform:uppercase}.module-alert{padding:12px 14px;border-radius:8px;margin-bottom:16px;background:#ecfdf5;color:#166534}.module-alert.error{background:#fef2f2;color:#991b1b}.module-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.module-form input,.module-form select{padding:8px;border:1px solid #cbd5e1;border-radius:7px;max-width:220px}.module-btn{padding:8px 11px;border:0;border-radius:7px;background:#0b1736;color:white;font-weight:700;cursor:pointer}.module-btn.alt{background:#d97706}.module-btn.light{background:#e2e8f0;color:#0f172a}.module-actions{display:flex;gap:6px;flex-wrap:wrap}.module-add{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.module-add input{padding:10px;border:1px solid #cbd5e1;border-radius:8px;min-width:0}.module-empty{padding:22px;text-align:center;color:#64748b}@media(max-width:760px){.module-content{padding:18px}.module-head{flex-direction:column}.module-add{grid-template-columns:1fr}.module-side{display:none}}
-</style></head><body>
-<aside class="module-side"><div class="sidebar-top"><div class="brand-container"><div class="brand-logo">HB</div><div><div class="brand-name">HomeBid</div><div class="brand-sub">STAFF WORKSPACE</div></div></div><div class="workspace-box"><div><div class="workspace-title"><?=sm_h($_SESSION['username']??'Staff account')?></div><div class="workspace-desc"><?=sm_h($_SESSION['role']??'Staff')?></div></div></div><div class="nav-section-title">Workspace</div><ul class="nav-list"><?php foreach($nav as [$href,$label,$key]):?><li class="nav-item"><a class="nav-link <?=$module===$key?'active':''?>" href="<?=$href?>"><?=sm_h($label)?></a></li><?php endforeach;?></ul></div><div class="sidebar-bottom"><a class="nav-link" href="../index.php">View HomeBid</a><form method="post" action="../logout.php"><input type="hidden" name="csrf_token" value="<?=sm_h(csrf_token())?>"><button class="module-btn" style="width:100%;margin-top:10px" type="submit">Log out</button></form></div></aside>
-<main class="module-main"><header class="top-header"><div class="breadcrumb">HomeBid &gt; <span><?=sm_h($pageTitle)?></span></div><div class="header-right"><span><?=sm_h($_SESSION['username']??'Staff')?></span></div></header><div class="module-content">
-<div class="module-head"><div><div class="pre-heading">STAFF WORKSPACE</div><h1><?=sm_h($pageTitle)?></h1><p class="module-sub"><?=sm_h($pageDescription)?></p></div><?php if($module==='reports'):?><a class="module-btn" href="reports.php?export=csv">Export CSV</a><?php endif;?></div>
-<?php if($notice):?><div class="module-alert"><?=sm_h($notice)?></div><?php endif;?><?php if($error):?><div class="module-alert error"><?=sm_h($error)?></div><?php endif;?>
-<div class="module-stats"><?php foreach($stats as [$label,$value]):?><div class="module-stat"><small><?=sm_h($label)?></small><strong><?=is_float($value)?sm_money($value):number_format((float)$value)?></strong></div><?php endforeach;?></div>
-<?php if($module==='staff' && $isAdmin):?><section class="module-card"><h2 style="margin-bottom:12px">Create staff account</h2><form method="post" class="module-add"><input type="hidden" name="csrf_token" value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action" value="add_staff"><input name="username" placeholder="Staff username" required maxlength="50"><input name="email" type="email" placeholder="Staff email" required><input name="password" type="password" placeholder="Temporary password (8+ characters)" minlength="8" required><button class="module-btn" type="submit">Create staff account</button></form></section><?php endif;?>
-<section class="module-card"><div class="module-scroll"><table class="module-table"><thead><tr><?php foreach($columns as $label):?><th><?=sm_h($label)?></th><?php endforeach;?><?php if(in_array($module,['approvals','properties','bidding','roles_sec','notification'],true)):?><th>Actions</th><?php endif;?></tr></thead><tbody>
-<?php if(!$rows):?><tr><td class="module-empty" colspan="<?=count($columns)+1?>">No records found.</td></tr><?php endif;?>
-<?php foreach($rows as $row):?><tr><?php foreach($columns as $key=>$label):?><td><?php $v=$row[$key]??''; if(in_array($key,['price','starting_bid','current_bid','highest_bid'],true)) echo sm_h(sm_money($v)); elseif($key==='is_approved'||$key==='is_featured'||$key==='is_verified') echo ((int)$v?'Yes':'No'); else echo nl2br(sm_h($v));?></td><?php endforeach;?>
-<?php if(in_array($module,['approvals','properties','bidding','roles_sec','notification'],true)):?><td><div class="module-actions">
-<?php if($module==='approvals' && !$row['is_approved']??true):?><form method="post"><input type="hidden" name="csrf_token" value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action" value="approve"><input type="hidden" name="id" value="<?=(int)$row['id']?>"><button class="module-btn" type="submit">Approve</button></form><?php endif;?>
-<?php if($module==='properties'):?><form method="post" class="module-form"><input type="hidden" name="csrf_token" value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action" value="status"><input type="hidden" name="id" value="<?=(int)$row['id']?>"><select name="status"><?php foreach(['Available','Reserved','Sold','Auction'] as $s):?><option <?=$row['status']===$s?'selected':''?>><?=$s?></option><?php endforeach;?></select><button class="module-btn" type="submit">Save</button></form><form method="post"><input type="hidden" name="csrf_token" value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action" value="feature"><input type="hidden" name="id" value="<?=(int)$row['id']?>"><button class="module-btn alt" type="submit"><?=((int)$row['is_featured']?'Unfeature':'Feature')?></button></form><?php endif;?>
-<?php if($module==='bidding'):?><form method="post" class="module-form"><input type="hidden" name="csrf_token" value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action" value="auction_status"><input type="hidden" name="id" value="<?=(int)$row['id']?>"><select name="status"><?php foreach(['upcoming','active','ended','cancelled'] as $s):?><option <?=$row['status']===$s?'selected':''?>><?=$s?></option><?php endforeach;?></select><button class="module-btn" type="submit">Update</button></form><?php endif;?>
-<?php if($module==='notification'):?><form method="post" class="module-form"><input type="hidden" name="csrf_token" value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action" value="inquiry_status"><input type="hidden" name="id" value="<?=(int)$row['id']?>"><select name="status"><?php foreach(['pending','responded','closed'] as $s):?><option <?=$row['status']===$s?'selected':''?>><?=$s?></option><?php endforeach;?></select><button class="module-btn" type="submit">Update</button></form><?php endif;?>
-<?php if($module==='roles_sec' && $isAdmin && (int)$row['id']!==$staffId):?><form method="post" class="module-form"><input type="hidden" name="csrf_token" value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action" value="change_role"><input type="hidden" name="id" value="<?=(int)$row['id']?>"><select name="role"><?php foreach(['Buyer','Staff','Administrator'] as $r):?><option <?=$row['role']===$r?'selected':''?>><?=$r?></option><?php endforeach;?></select><button class="module-btn" type="submit">Save role</button></form><?php endif;?>
-</div></td><?php endif;?></tr><?php endforeach;?></tbody></table></div></section>
-</div></main></body></html>
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title><?=sm_h($pageTitle)?> | HomeBid Staff</title>
+    <link rel="stylesheet" href="style_admin.css">
+    <style>
+    .module-main {
+        flex: 1;
+        min-width: 0;
+        height: 100vh;
+        overflow: auto
+    }
+
+    .module-side {
+        min-height: 100vh;
+        overflow: auto
+    }
+
+    .module-content {
+        max-width: 1450px;
+        margin: auto;
+        padding: 30px
+    }
+
+    .module-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 22px
+    }
+
+    .module-head h1 {
+        font-size: 26px
+    }
+
+    .module-sub {
+        color: #64748b;
+        margin-top: 6px
+    }
+
+    .module-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+        margin-bottom: 20px
+    }
+
+    .module-stat {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px
+    }
+
+    .module-stat small {
+        color: #64748b
+    }
+
+    .module-stat strong {
+        display: block;
+        font-size: 25px;
+        margin-top: 8px
+    }
+
+    .module-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 18px
+    }
+
+    .module-scroll {
+        overflow: auto
+    }
+
+    .module-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 760px
+    }
+
+    .module-table th,
+    .module-table td {
+        text-align: left;
+        padding: 12px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 13px;
+        vertical-align: top
+    }
+
+    .module-table th {
+        font-size: 11px;
+        color: #64748b;
+        text-transform: uppercase
+    }
+
+    .module-alert {
+        padding: 12px 14px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        background: #ecfdf5;
+        color: #166534
+    }
+
+    .module-alert.error {
+        background: #fef2f2;
+        color: #991b1b
+    }
+
+    .module-form {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap
+    }
+
+    .module-form input,
+    .module-form select {
+        padding: 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+        max-width: 220px
+    }
+
+    .module-btn {
+        padding: 8px 11px;
+        border: 0;
+        border-radius: 7px;
+        background: #0b1736;
+        color: white;
+        font-weight: 700;
+        cursor: pointer
+    }
+
+    .module-btn.alt {
+        background: #d97706
+    }
+
+    .module-btn.light {
+        background: #e2e8f0;
+        color: #0f172a
+    }
+
+    .module-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap
+    }
+
+    .module-add {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px
+    }
+
+    .module-add input {
+        padding: 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        min-width: 0
+    }
+
+    .module-empty {
+        padding: 22px;
+        text-align: center;
+        color: #64748b
+    }
+
+    @media(max-width:760px) {
+        .module-content {
+            padding: 18px
+        }
+
+        .module-head {
+            flex-direction: column
+        }
+
+        .module-add {
+            grid-template-columns: 1fr
+        }
+
+        .module-side {
+            display: none
+        }
+    }
+    </style>
+</head>
+
+<body>
+    <aside class="module-side">
+        <div class="sidebar-top">
+            <div class="brand-container">
+                <div class="brand-logo">HB</div>
+                <div>
+                    <div class="brand-name">HomeBid</div>
+                    <div class="brand-sub">STAFF WORKSPACE</div>
+                </div>
+            </div>
+            <div class="workspace-box">
+                <div>
+                    <div class="workspace-title"><?=sm_h($_SESSION['username']??'Staff account')?></div>
+                    <div class="workspace-desc"><?=sm_h($_SESSION['role']??'Staff')?></div>
+                </div>
+            </div>
+            <div class="nav-section-title">Workspace</div>
+            <ul class="nav-list"><?php foreach($nav as [$href,$label,$key]):?><li class="nav-item"><a
+                        class="nav-link <?=$module===$key?'active':''?>" href="<?=$href?>"><?=sm_h($label)?></a></li>
+                <?php endforeach;?></ul>
+        </div>
+        <div class="sidebar-bottom"><a class="nav-link" href="../index.php">View HomeBid</a>
+            <form method="post" action="../logout.php"><input type="hidden" name="csrf_token"
+                    value="<?=sm_h(csrf_token())?>"><button class="module-btn" style="width:100%;margin-top:10px"
+                    type="submit">Log out</button></form>
+        </div>
+    </aside>
+    <main class="module-main">
+        <header class="top-header">
+            <div class="breadcrumb">HomeBid &gt; <span><?=sm_h($pageTitle)?></span></div>
+            <div class="header-right"><span><?=sm_h($_SESSION['username']??'Staff')?></span></div>
+        </header>
+        <div class="module-content">
+            <div class="module-head">
+                <div>
+                    <div class="pre-heading">STAFF WORKSPACE</div>
+                    <h1><?=sm_h($pageTitle)?></h1>
+                    <p class="module-sub"><?=sm_h($pageDescription)?></p>
+                </div><?php if($module==='reports'):?><a class="module-btn" href="reports.php?export=csv">Export
+                    CSV</a><?php endif;?>
+            </div>
+            <?php if($notice):?><div class="module-alert"><?=sm_h($notice)?></div><?php endif;?><?php if($error):?><div
+                class="module-alert error"><?=sm_h($error)?></div><?php endif;?>
+            <div class="module-stats"><?php foreach($stats as [$label,$value]):?><div class="module-stat">
+                    <small><?=sm_h($label)?></small><strong><?=is_float($value)?sm_money($value):number_format((float)$value)?></strong>
+                </div><?php endforeach;?></div>
+            <?php if($module==='staff' && $isAdmin):?><section class="module-card">
+                <h2 style="margin-bottom:12px">Create staff account</h2>
+                <form method="post" class="module-add"><input type="hidden" name="csrf_token"
+                        value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action" value="add_staff"><input
+                        name="username" placeholder="Staff username" required maxlength="50"><input name="email"
+                        type="email" placeholder="Staff email" required><input name="password" type="password"
+                        placeholder="Temporary password (8+ characters)" minlength="8" required><button
+                        class="module-btn" type="submit">Create staff account</button></form>
+            </section><?php endif;?>
+            <section class="module-card">
+                <div class="module-scroll">
+                    <table class="module-table">
+                        <thead>
+                            <tr><?php foreach($columns as $label):?><th><?=sm_h($label)?></th>
+                                <?php endforeach;?><?php if(in_array($module,['approvals','properties','bidding','roles_sec','notification'],true)):?>
+                                <th>Actions</th><?php endif;?></tr>
+                        </thead>
+                        <tbody>
+                            <?php if(!$rows):?><tr>
+                                <td class="module-empty" colspan="<?=count($columns)+1?>">No records found.</td>
+                            </tr><?php endif;?>
+                            <?php foreach($rows as $row):?><tr><?php foreach($columns as $key=>$label):?><td>
+                                    <?php $v=$row[$key]??''; if(in_array($key,['price','starting_bid','current_bid','highest_bid'],true)) echo sm_h(sm_money($v)); elseif($key==='is_approved'||$key==='is_featured'||$key==='is_verified') echo ((int)$v?'Yes':'No'); else echo nl2br(sm_h($v));?>
+                                </td><?php endforeach;?>
+                                <?php if(in_array($module,['approvals','properties','bidding','roles_sec','notification'],true)):?>
+                                <td>
+                                    <div class="module-actions">
+                                        <?php if($module==='approvals' && !$row['is_approved']??true):?><form
+                                            method="post"><input type="hidden" name="csrf_token"
+                                                value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action"
+                                                value="approve"><input type="hidden" name="id"
+                                                value="<?=(int)$row['id']?>"><button class="module-btn"
+                                                type="submit">Approve</button></form><?php endif;?>
+                                        <?php if($module==='properties'):?><form method="post" class="module-form">
+                                            <input type="hidden" name="csrf_token"
+                                                value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action"
+                                                value="status"><input type="hidden" name="id"
+                                                value="<?=(int)$row['id']?>"><select
+                                                name="status"><?php foreach(['Available','Reserved','Sold','Auction'] as $s):?>
+                                                <option <?=$row['status']===$s?'selected':''?>><?=$s?></option>
+                                                <?php endforeach;?></select><button class="module-btn"
+                                                type="submit">Save</button></form>
+                                        <form method="post"><input type="hidden" name="csrf_token"
+                                                value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action"
+                                                value="feature"><input type="hidden" name="id"
+                                                value="<?=(int)$row['id']?>"><button class="module-btn alt"
+                                                type="submit"><?=((int)$row['is_featured']?'Unfeature':'Feature')?></button>
+                                        </form><?php endif;?>
+                                        <?php if($module==='bidding'):?><form method="post" class="module-form"><input
+                                                type="hidden" name="csrf_token" value="<?=sm_h(csrf_token())?>"><input
+                                                type="hidden" name="action" value="auction_status"><input type="hidden"
+                                                name="id" value="<?=(int)$row['id']?>"><select
+                                                name="status"><?php foreach(['upcoming','active','ended','cancelled'] as $s):?>
+                                                <option <?=$row['status']===$s?'selected':''?>><?=$s?></option>
+                                                <?php endforeach;?></select><button class="module-btn"
+                                                type="submit">Update</button></form><?php endif;?>
+                                        <?php if($module==='notification'):?><form method="post" class="module-form">
+                                            <input type="hidden" name="csrf_token"
+                                                value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action"
+                                                value="inquiry_status"><input type="hidden" name="id"
+                                                value="<?=(int)$row['id']?>"><select
+                                                name="status"><?php foreach(['pending','responded','closed'] as $s):?>
+                                                <option <?=$row['status']===$s?'selected':''?>><?=$s?></option>
+                                                <?php endforeach;?></select><button class="module-btn"
+                                                type="submit">Update</button></form><?php endif;?>
+                                        <?php if($module==='roles_sec' && $isAdmin && (int)$row['id']!==$staffId):?>
+                                        <form method="post" class="module-form"><input type="hidden" name="csrf_token"
+                                                value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action"
+                                                value="change_role"><input type="hidden" name="id"
+                                                value="<?=(int)$row['id']?>"><select
+                                                name="role"><?php foreach(['Buyer','Staff','Administrator'] as $r):?>
+                                                <option <?=$row['role']===$r?'selected':''?>><?=$r?></option>
+                                                <?php endforeach;?></select><button class="module-btn"
+                                                type="submit">Save role</button></form><?php endif;?>
+                                    </div>
+                                </td><?php endif;?></tr><?php endforeach;?></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+
+</html>

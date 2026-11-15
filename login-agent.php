@@ -31,5 +31,5 @@ if(!$valid && $stored!=='' && !str_starts_with($stored,'$') && hash_equals($stor
 if(!$valid) respond(401,['ok'=>false,'message'=>'Email or password is incorrect.']);
 session_regenerate_id(true);
 $_SESSION['user_id']=(int)$account['id'];$_SESSION['role']=$account['role'];$_SESSION['username']=$account['username'];
-$redirect=$account['role']==='Administrator'||$account['role']==='Staff'?'staff/dashboard.php':'client/dashboard.php';
+$redirect=$account['role']==='Administrator'||$account['role']==='Staff'?'staff/module.php':'client/dashboard.php';
 respond(200,['ok'=>true,'message'=>'Login successful.','redirect'=>$redirect]);

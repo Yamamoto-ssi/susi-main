@@ -9,7 +9,7 @@ try {
     $featuredQuery = $pdo->query("
         SELECT
             p.id, p.title, p.location, p.description, p.lot_area, p.floor_area,
-            p.price, p.status, p.is_approved,
+            p.price, p.status, p.is_approved, p.image_path,
             a.starting_bid, a.current_bid,
             (SELECT COUNT(*) FROM bids b WHERE b.property_id = p.id) AS bidder_count
         FROM properties p
@@ -107,7 +107,7 @@ function homebid_money($amount): string {
                     <?php foreach ($featuredProperties as $property): ?>
                         <article class="property-card">
                             <div class="property-image">
-                                <img src="assets/property-alabang.jpg" alt="<?= htmlspecialchars($property['title'], ENT_QUOTES, 'UTF-8') ?>">
+                                <img src="<?php echo htmlspecialchars($property['image_path'], ENT_QUOTES, 'UTF-8'); ?>" alt="<?= htmlspecialchars($property['title'], ENT_QUOTES, 'UTF-8') ?>">
                                 <?php if (!empty($property['current_bid'])): ?>
                                     <span class="live-tag">● LIVE AUCTION</span>
                                 <?php else: ?>
