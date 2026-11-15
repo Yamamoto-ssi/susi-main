@@ -1,11 +1,14 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/config/auth.php';
 require_once __DIR__.'/config/db.php';
 if(session_status()!==PHP_SESSION_ACTIVE) session_start();
 header('Content-Type: application/json; charset=utf-8');
 function respond(int $status,array $body): never { http_response_code($status); echo json_encode($body); exit; }
 if($_SERVER['REQUEST_METHOD']!=='POST') respond(405,['ok'=>false,'message'=>'Invalid request.']);
 $action=$_POST['action']??'login';
+$isStaffPortal = ($action === 'staff_login');
+if ($isStaffPortal) verify_csrf();
 $email=trim($_POST['email']??'');
 $password=(string)($_POST['password']??'');
 if(!filter_var($email,FILTER_VALIDATE_EMAIL)||$password==='') respond(422,['ok'=>false,'message'=>'Enter a valid email and password.']);
@@ -31,5 +34,11 @@ if(!$valid && $stored!=='' && !str_starts_with($stored,'$') && hash_equals($stor
 if(!$valid) respond(401,['ok'=>false,'message'=>'Email or password is incorrect.']);
 session_regenerate_id(true);
 $_SESSION['user_id']=(int)$account['id'];$_SESSION['role']=$account['role'];$_SESSION['username']=$account['username'];
-$redirect=$account['role']==='Administrator'||$account['role']==='Staff'?'staff/module.php':'client/dashboard.php';
+if ($isStaffPortal && !in_array($account['role'], ['Administrator','Staff'], true)) {
+ respond(403,['ok'=>false,'message'=>'This login is only for Administrator and Staff accounts. Please use the buyer/client login.']);
+}
+if (!$isStaffPortal && in_array($account['role'], ['Administrator','Staff'], true)) {
+ respond(403,['ok'=>false,'message'=>'Administrator and Staff accounts must use the Staff / Admin Login page.']);
+}
+$redirect=in_array($account['role'], ['Administrator','Staff'], true) ? 'staff/dashboard.php' : 'client/dashboard.php';
 respond(200,['ok'=>true,'message'=>'Login successful.','redirect'=>$redirect]);
