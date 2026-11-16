@@ -2,9 +2,9 @@
 session_start();
 include 'config/db.php';
 
-    $client_id = '';
-    $client_secret = '';
-    $redirect_uri = '';
+$client_id     = getenv('GOOGLE_CLIENT_ID');
+$client_secret = getenv('GOOGLE_CLIENT_SECRET');
+$redirect_uri  = getenv('GOOGLE_REDIRECT_URI') ?: 'http://localhost/susi/google-callback.php';
 
 // 1. Check if Google returned an explicit error
 if (isset($_GET['error'])) {
