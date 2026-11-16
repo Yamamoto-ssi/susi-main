@@ -98,6 +98,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $dbTransaction=true;
             hb_query($conn,"INSERT INTO properties(user_id,title,description,category,location,region,province,city,barangay,lot_number,lot_area,floor_area,price,status,is_approved,image_path,review_status,submission_type) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'Available',0,?,'pending',?)",[$userId,$t,$d,$category,$l,$regionName,$provinceName!==''?$provinceName:null,$cityName,$barangayName,$lotNumber,$lot,$floor,$price,$thumbnailPath,$submissionType]);
             $propertyId=mysqli_insert_id($conn);
+            hb_query($conn, 'INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)', [$userId,'Submitted a property for review','property',(int)$propertyId,$_SERVER['REMOTE_ADDR']??null]);
             foreach($tags as $tag) hb_query($conn,'INSERT INTO property_tags(property_id,tag_name) VALUES(?,?)',[$propertyId,$tag]);
             for($i=1;$i<count($savedFiles);$i++) hb_query($conn,'INSERT INTO property_images(property_id,image_path) VALUES(?,?)',[$propertyId,$savedFiles[$i]]);
             if($submissionType==='auction'){hb_query($conn,"INSERT INTO auctions(property_id,starting_bid,current_bid,highest_bidder_id,start_time,end_time,status,review_status) VALUES(?,?,?,NULL,?,?,'upcoming','pending')",[$propertyId,$auctionStartingBid,$auctionStartingBid,$auctionStartDate->format('Y-m-d H:i:s'),$auctionEndDate->format('Y-m-d H:i:s')]);hb_query($conn,"UPDATE properties SET status='Auction' WHERE id=?",[$propertyId]);}
