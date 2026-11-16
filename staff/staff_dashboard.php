@@ -288,7 +288,33 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
             min-height: 100vh
         }
     }
-    </style>
+    
+    /* Minimal responsive staff workspace */
+    .staff-side{background:#172b3b!important;border-right:0!important}
+    .staff-head h1{font-family:'DM Sans',sans-serif;letter-spacing:-.04em}
+    .staff-card-head{border-bottom-color:#edf0ed}
+    .staff-scroll{max-width:100%;overflow-x:auto}
+    @media(max-width:900px){
+      body{display:block!important;height:auto!important;min-height:100vh;overflow:auto!important}
+      .staff-side{width:100%!important;min-height:0!important;height:auto!important;position:relative;display:block!important}
+      .staff-side .sidebar-top{padding:15px 18px}
+      .staff-side .brand-container{margin-bottom:12px}
+      .staff-side .nav-list{display:flex;flex-wrap:wrap;gap:7px;padding:0;margin:10px 0}
+      .staff-side .nav-item{margin:0}
+      .staff-side .nav-link{padding:9px 12px;border-radius:8px}
+      .staff-main{height:auto!important;min-height:0!important;overflow:visible!important}
+      .staff-content{padding:22px 16px 35px!important}
+    }
+    @media(max-width:560px){
+      .staff-side .sidebar-top{padding:12px}
+      .staff-side .nav-list{gap:5px}
+      .staff-side .nav-link{font-size:12px;padding:8px 10px}
+      .staff-content{padding:17px 13px 28px!important}
+      .staff-head{flex-direction:column;align-items:flex-start}
+      .staff-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .staff-card{overflow:hidden}
+    }
+</style>
 </head>
 
 <body>
