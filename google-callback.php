@@ -131,29 +131,22 @@ try {
         $userId = (int)$account['id'];
         $username = (string)$account['username'];
     } else {
+        // New Google users must complete their HomeBid profile before an account is created.
         $displayName = trim((string)($claims['name'] ?? ''));
-        $username = $displayName !== '' ? $displayName : (string)strstr($email, '@', true);
-        $username = trim(function_exists('mb_substr') ? mb_substr($username, 0, 50) : substr($username, 0, 50));
-        if ($username === '') $username = 'Google User';
+        $suggestedUsername = $displayName !== '' ? $displayName : (string)strstr($email, '@', true);
+        $suggestedUsername = trim(function_exists('mb_substr')
+            ? mb_substr($suggestedUsername, 0, 50)
+            : substr($suggestedUsername, 0, 50));
 
-        $baseUsername = $username;
-        $attempt = 0;
-        while (hb_fetch_one(hb_query($conn, 'SELECT id FROM users WHERE username=? LIMIT 1', [$username]))) {
-            $attempt++;
-            $suffix = (string)random_int(1000, 9999);
-            $username = substr($baseUsername, 0, 45) . $suffix;
-            if ($attempt >= 10) {
-                google_callback_error('A unique username could not be generated. Please contact support.', 500);
-            }
-        }
+        $_SESSION['google_registration'] = [
+            'google_id' => $googleId,
+            'email' => $email,
+            'suggested_username' => $suggestedUsername !== '' ? $suggestedUsername : 'Google User',
+            'started_at' => time(),
+        ];
 
-        $randomPassword = password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
-        hb_query($conn,
-            "INSERT INTO users (username, email, google_id, password, role, is_verified) VALUES (?, ?, ?, ?, 'Buyer', 1)",
-            [$username, $email, $googleId, $randomPassword]
-        );
-        $userId = (int)mysqli_insert_id($conn);
-        $role = 'Buyer';
+        header('Location: google-register.php');
+        exit;
     }
 
     session_regenerate_id(true);
