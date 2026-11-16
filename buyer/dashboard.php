@@ -37,22 +37,43 @@ $tab=$_GET['tab']??'home';
 $allowed=['home','browse','my-bids','notifications','activity'];
 if(!in_array($tab,$allowed,true))$tab='home';
 $search=trim((string)($_GET['q']??''));
-$stats=buyer_one($conn,"SELECT
- (SELECT COUNT(*) FROM auctions a JOIN properties p ON p.id=a.property_id WHERE p.is_approved=1 AND p.review_status='approved' AND a.review_status='approved' AND p.status='Auction' AND a.status='active') active_auctions,
- (SELECT COUNT(*) FROM properties WHERE is_approved=1 AND review_status='approved' AND status='Available') available_properties,
- (SELECT COUNT(*) FROM bids WHERE user_id=?) bids_placed,
- (SELECT COALESCE(MAX(bid_amount),0) FROM bids WHERE user_id=?) highest_bid",[$userId,$userId]);
-$auctions=buyer_rows($conn,"SELECT a.id auction_id,a.status auction_status,a.starting_bid,a.current_bid,a.start_time,a.end_time,p.id AS property_id,
- p.title,p.location,p.description,p.lot_area,p.floor_area,p.price,p.image_path,
+$filterRegion=trim((string)($_GET['region']??''));
+$filterProvince=trim((string)($_GET['province']??''));
+$filterCity=trim((string)($_GET['city']??''));
+$allowedPropertyTags=['Furnished','Unfurnished','Gated Community','Near School','Near Hospital','Near Mall','Near Public Transport','With Swimming Pool','With Garden','With Garage','Corner Lot','Newly Renovated','Flood-Free','Pet-Friendly','Ready for Occupancy'];
+$filterTags=$_GET['tags']??[];
+if(!is_array($filterTags)) $filterTags=[];
+$filterTags=array_values(array_unique(array_filter($filterTags,fn($tag)=>is_string($tag)&&in_array($tag,$allowedPropertyTags,true))));
+$regionOptions=buyer_rows($conn,"SELECT DISTINCT region FROM properties WHERE is_approved=1 AND review_status='approved' AND region IS NOT NULL AND region<>'' ORDER BY region");
+$provinceSql="SELECT DISTINCT province FROM properties WHERE is_approved=1 AND review_status='approved' AND province IS NOT NULL AND province<>''";
+$provinceArgs=[];
+if($filterRegion!==''){$provinceSql.=" AND region=?";$provinceArgs[]=$filterRegion;}
+$provinceOptions=buyer_rows($conn,$provinceSql." ORDER BY province",$provinceArgs);
+$citySql="SELECT DISTINCT city FROM properties WHERE is_approved=1 AND review_status='approved' AND city IS NOT NULL AND city<>''";
+$cityArgs=[];
+if($filterRegion!==''){$citySql.=" AND region=?";$cityArgs[]=$filterRegion;}
+if($filterProvince!==''){$citySql.=" AND province=?";$cityArgs[]=$filterProvince;}
+$cityOptions=buyer_rows($conn,$citySql." ORDER BY city",$cityArgs);
+$browseSql="SELECT a.id auction_id,a.status auction_status,a.starting_bid,a.current_bid,a.start_time,a.end_time,p.id AS property_id,
+ p.title,p.location,p.description,p.region,p.province,p.city,p.lot_area,p.floor_area,p.price,p.image_path,
  (SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count
  FROM properties p
  LEFT JOIN auctions a ON a.id=(SELECT a2.id FROM auctions a2 WHERE a2.property_id=p.id ORDER BY a2.id DESC LIMIT 1)
  WHERE p.is_approved=1 AND p.review_status='approved'
  AND ((p.status='Available') OR (p.status='Auction' AND a.review_status='approved' AND a.status IN ('active','upcoming')))
- AND (p.title LIKE ? OR p.location LIKE ? OR p.description LIKE ?)
- ORDER BY CASE WHEN a.status='active' THEN 0 WHEN a.status='upcoming' THEN 1 ELSE 2 END,
- COALESCE(a.end_time,p.created_at) ASC LIMIT 24",
- ['%'.$search.'%','%'.$search.'%','%'.$search.'%']);
+ AND (p.title LIKE ? OR p.location LIKE ? OR p.description LIKE ?)";
+$browseArgs=['%'.$search.'%','%'.$search.'%','%'.$search.'%'];
+if($filterRegion!==''){$browseSql.=" AND p.region=?";$browseArgs[]=$filterRegion;}
+if($filterProvince!==''){$browseSql.=" AND p.province=?";$browseArgs[]=$filterProvince;}
+if($filterCity!==''){$browseSql.=" AND p.city=?";$browseArgs[]=$filterCity;}
+foreach($filterTags as $selectedTag){$browseSql.=" AND EXISTS (SELECT 1 FROM property_tags pt WHERE pt.property_id=p.id AND pt.tag_name=?)";$browseArgs[]=$selectedTag;}
+$browseSql.=" ORDER BY CASE WHEN a.status='active' THEN 0 WHEN a.status='upcoming' THEN 1 ELSE 2 END, COALESCE(a.end_time,p.created_at) ASC LIMIT 100";
+$auctions=buyer_rows($conn,$browseSql,$browseArgs);
+$stats=buyer_one($conn,"SELECT
+ (SELECT COUNT(*) FROM auctions a JOIN properties p ON p.id=a.property_id WHERE p.is_approved=1 AND p.review_status='approved' AND a.review_status='approved' AND p.status='Auction' AND a.status='active') active_auctions,
+ (SELECT COUNT(*) FROM properties WHERE is_approved=1 AND review_status='approved' AND status='Available') available_properties,
+ (SELECT COUNT(*) FROM bids WHERE user_id=?) bids_placed,
+ (SELECT COALESCE(MAX(bid_amount),0) FROM bids WHERE user_id=?) highest_bid",[$userId,$userId]);
 $myBids=buyer_rows($conn,"SELECT b.id,b.bid_amount,b.status bid_status,b.created_at,p.title,p.location,a.id auction_id,a.highest_bidder_id,a.status auction_status,a.current_bid,a.end_time,p.image_path,
   EXISTS(SELECT 1 FROM checkout_payments cp WHERE cp.auction_id=a.id AND cp.user_id=b.user_id AND cp.status='paid') AS auction_paid
   FROM bids b JOIN properties p ON p.id=b.property_id
@@ -225,11 +246,15 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                 <h1>Browse properties</h1>
                 <p>Explore approved listings and current auction opportunities.</p>
             </section>
-            <form class="filter-bar" method="get"><input type="hidden" name="tab"
-                    value="browse"><label><?=buyer_icon('search',16)?><input name="q" value="<?=bh($search)?>"
-                        placeholder="Search property name, location, or details"></label><button class="btn gold">Search
-                    properties</button><a href="?tab=browse">Clear</a></form>
-            <div class="browse-meta"><b><?=count($auctions)?> opportunities</b><span>Showing approved listings and approved auctions</span></div>
+            <form class="filter-bar browse-filter-form" method="get"><input type="hidden" name="tab" value="browse">
+                <label class="browse-search"><?=buyer_icon('search',16)?><input name="q" value="<?=bh($search)?>" placeholder="Search property name, location, or details"></label>
+                <label>Region<select name="region" id="browseRegion"><option value="">All regions</option><?php foreach($regionOptions as $option):?><option value="<?=bh($option['region'])?>" <?=$filterRegion===$option['region']?'selected':''?>><?=bh($option['region'])?></option><?php endforeach;?></select></label>
+                <label>Province<select name="province" id="browseProvince"><option value="">All provinces</option><?php foreach($provinceOptions as $option):?><option value="<?=bh($option['province'])?>" <?=$filterProvince===$option['province']?'selected':''?>><?=bh($option['province'])?></option><?php endforeach;?></select></label>
+                <label>City / Municipality<select name="city"><option value="">All cities</option><?php foreach($cityOptions as $option):?><option value="<?=bh($option['city'])?>" <?=$filterCity===$option['city']?'selected':''?>><?=bh($option['city'])?></option><?php endforeach;?></select></label>
+                <fieldset class="browse-tag-filter"><legend>Property tags</legend><div class="browse-tag-options"><?php foreach($allowedPropertyTags as $tagOption):?><label><input type="checkbox" name="tags[]" value="<?=bh($tagOption)?>" <?=in_array($tagOption,$filterTags,true)?'checked':''?>><span><?=bh($tagOption)?></span></label><?php endforeach;?></div></fieldset>
+                <div class="browse-filter-actions"><button class="btn gold" type="submit">Apply filters</button><a href="?tab=browse">Clear filters</a></div>
+            </form>
+            <div class="browse-meta"><b><?=count($auctions)?> opportunities</b><span>Showing approved listings matching your filters</span></div>
             <div class="property-grid browse-grid"><?php if(!$auctions):?><div class="empty-state">No matching approved properties found. Try another search.</div><?php endif;?><?php foreach($auctions as $p):?><article
                     class="property-card">
                     <div class="property-photo"><?php if(!empty($p['image_path'])):?><img
@@ -332,6 +357,13 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
             <?php endif;?>
             <footer>© <?=date('Y')?> HomeBid. A smarter way to find your next home.</footer>
         </main>
+    const browseRegion = document.getElementById('browseRegion');
+    const browseProvince = document.getElementById('browseProvince');
+    if (browseRegion && browseProvince) browseRegion.addEventListener('change', () => {
+        browseProvince.value = '';
+        const citySelect = document.querySelector('select[name="city"]');
+        if (citySelect) citySelect.value = '';
+    });
     </div>
 </body>
 
