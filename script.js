@@ -16,7 +16,7 @@ const authSwitch=document.getElementById("authSwitch");
 const googleSignInSection=document.getElementById("googleSignInSection");
 const googleSignInButton=document.getElementById("googleSignInButton");
 const googleSignInNote=document.getElementById("googleSignInNote");
-let googleButtonRendered=false;
+
 
 function renderGoogleSignInButton(){
  if(!googleSignInSection||googleSignInSection.hidden)return;
@@ -34,7 +34,7 @@ function renderGoogleSignInButton(){
   type:"standard",theme:"outline",size:"large",shape:"rectangular",
   text:"continue_with",logo_alignment:"left",width:360
  });
- googleButtonRendered=true;
+
  if(googleSignInNote)googleSignInNote.textContent="";
 }
 
@@ -63,7 +63,7 @@ function openModal(type){
  modalTitle.textContent=login?"Welcome back":"Create your account";
  modalDescription.textContent=login?"Log in to continue to your HomeBid account.":"Join HomeBid and discover your next home.";
  if(nameField){nameField.hidden=login;nameInput.required=!login;}
- if(googleSignInSection){googleSignInSection.hidden=!login;if(login)renderGoogleSignInButton();}
+ if(googleSignInSection){googleSignInSection.hidden=!login;if(login){renderGoogleSignInButton();}}
  if(googleSignInNote&&!window.HOMEBID_GOOGLE_CLIENT_ID)googleSignInNote.textContent="Google Sign-In needs a configured OAuth Client ID.";
  if(passwordInput){passwordInput.autocomplete=login?"current-password":"new-password";passwordInput.minLength=login?0:8;}
  const submit=form.querySelector(".form-submit");
