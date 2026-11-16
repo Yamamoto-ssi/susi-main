@@ -122,3 +122,25 @@ form:not(.logout-form){padding:22px 24px 24px}.form-grid{display:grid;grid-templ
  #auctionModal form,#propertyModal form{padding:18px 17px 25px}
  .modal-actions button{flex:1}
 }
+
+
+/* HomeBid minimal UI refresh */
+:root{--navy:#172b3b;--navy-2:#20394a;--ink:#243342;--muted:#778493;--gold:#9caa9b;--gold-light:#edf1ed;--paper:#f6f7f6;--line:#e5e9e6;--green:#3e775c}
+body{background:#f6f7f6;font-size:14px;-webkit-font-smoothing:antialiased}
+.sidebar{background:#172b3b;width:254px;box-shadow:4px 0 22px #1425360a}
+.brand{height:76px}.brand-mark{background:#e8eee9;color:#284536;border:0;border-radius:11px;transform:none}
+.brand-mark svg{transform:none}
+.app-main,.main{min-width:0}
+.content{padding:30px clamp(18px,3vw,42px)}
+.panel,.stat-card,.approval-card,.list-page,.property-table,.portfolio,.live-card{border:1px solid #e6eae7!important;border-radius:15px!important;box-shadow:0 5px 20px #1d352508!important}
+.stat-card{background:#fff}
+.panel-head{border-bottom-color:#edf0ed}
+button,.btn,.primary{border-radius:9px}
+input,select,textarea{border:1px solid #dfe5e1!important;border-radius:9px!important;min-height:42px}
+input:focus,select:focus,textarea:focus{outline:3px solid #dfe9df!important;border-color:#8da594!important}
+table{border-collapse:separate;border-spacing:0}
+th{background:#f7f9f7;color:#647268;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+td,th{padding:13px 14px}
+@media(max-width:900px){.sidebar{width:230px}}
+@media(max-width:780px){.content{padding:20px 16px 32px}.dashboard-grid{grid-template-columns:1fr}.sidebar{box-shadow:15px 0 40px #172b3b24}}
+@media(max-width:560px){.content{padding:16px 13px 28px}.stat-grid,.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.panel,.stat-card{border-radius:12px!important}.page-head,.page-heading{align-items:flex-start;gap:12px;flex-direction:column}}
