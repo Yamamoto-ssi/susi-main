@@ -191,7 +191,16 @@ $fullAddress = $addressParts ? implode(', ', $addressParts) : ($property['locati
 <p class="notice">Minimum next bid: <?=property_money(max((float)$property['starting_bid'],(float)$property['current_bid']+1))?></p>
 </form>
 <?php else: ?><p class="notice">Bidding is not open right now. Check the auction schedule above.</p><?php endif; ?>
-<?php else: ?><p class="notice">This property is available for purchase. Contact the seller or use the reservation process to proceed.</p><?php endif; ?>
+<?php else: ?>
+<form method="post" action="checkout.php" style="margin-top:18px">
+<input type="hidden" name="csrf_token" value="<?=property_h(csrf_token())?>">
+<input type="hidden" name="payment_type" value="reservation">
+<input type="hidden" name="property_id" value="<?= (int)$property['id'] ?>">
+<div class="info"><span>Reservation fee</span><b>₱5,000.00</b></div>
+<button class="btn" type="submit" style="width:100%;border:0;cursor:pointer">Reserve with Xendit</button>
+<p class="notice">You will be redirected to Xendit to complete your reservation payment securely.</p>
+</form>
+<?php endif; ?>
 <a class="btn secondary" href="index.php#properties">Browse more properties</a>
 </aside>
 </div>
