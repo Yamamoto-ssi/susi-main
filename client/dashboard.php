@@ -116,6 +116,7 @@ $q = hb_query($conn, "SELECT COUNT(*) total,SUM(is_approved=0) pending,SUM(is_ap
 $q = hb_query($conn, 'SELECT p.*,(SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count FROM properties p WHERE p.user_id=? ORDER BY p.created_at DESC', [$userId]);$properties=hb_fetch_all($q);
 $q = hb_query($conn, 'SELECT a.*,p.title,p.location,(SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count FROM auctions a JOIN properties p ON p.id=a.property_id WHERE p.user_id=? ORDER BY a.created_at DESC', [$userId]);$auctions=hb_fetch_all($q);
 $q = hb_query($conn, 'SELECT v.*,p.title FROM viewing_bookings v JOIN properties p ON p.id=v.property_id WHERE p.user_id=? ORDER BY v.scheduled_date DESC LIMIT 8', [$userId]);$viewings=hb_fetch_all($q);
+$q = hb_query($conn, 'SELECT n.id,n.title,n.message,n.is_read,n.created_at FROM notifications n WHERE n.user_id=? ORDER BY n.created_at DESC LIMIT 50', [$userId]);$notifications=hb_fetch_all($q);
 $q = hb_query($conn, 'SELECT username,role FROM users WHERE id=?', [$userId]);$account=hb_fetch_one($q)?:['username'=>'Seller','role'=>'Buyer'];$initials=strtoupper(substr($account['username'],0,2));
 $active=array_values(array_filter($auctions,fn($a)=>strtolower((string)$a['status'])==='active'));$featured=$active[0]??($auctions[0]??null);$bidTotal=array_sum(array_column($properties,'bid_count'));$highest=(float)($featured['current_bid']??$featured['starting_bid']??0);
 function e($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}function peso($v){return '₱'.number_format((float)$v,2);}function ico($n,$s=18){$p=['grid'=>'<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>','home'=>'<path d="m3 11 9-7 9 7M5 10v10h14V10M9 20v-6h6v6"/>','check'=>'<path d="m20 6-11 11-5-5"/><circle cx="12" cy="12" r="9"/>','gavel'=>'<path d="m14 5 5 5M11 8l5 5M6 13l5 5M3 21h11M13 4l-8 8 6 6 8-8"/>','pulse'=>'<path d="M3 12h4l3-6 4 12 3-6h4"/><circle cx="12" cy="12" r="9"/>','trophy'=>'<path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM10 13v4m4-4v4M7 20h10M8 6H4v2a4 4 0 0 0 4 4M16 6h4v2a4 4 0 0 1-4 4"/>','bell'=>'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>','plus'=>'<path d="M12 5v14M5 12h14"/>','search'=>'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>','chevron'=>'<path d="m9 18 6-6-6-6"/>','arrow'=>'<path d="M5 12h14m-5-5 5 5-5 5"/>','building'=>'<path d="M4 21V7l8-4 8 4v14M8 10h2m4 0h2M8 14h2m4 0h2M9 21v-3h6v3"/>','clock'=>'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>','users'=>'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8M22 21v-2a4 4 0 0 0-3-4"/>','trend'=>'<path d="m3 17 6-6 4 4 8-9m-6 0h6v6"/>','shield'=>'<path d="m12 3-8 3v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-3Z"/><path d="m9 12 2 2 4-4"/>','menu'=>'<path d="M4 7h16M4 12h16M4 17h16"/>','x'=>'<path d="m6 6 12 12M18 6 6 18"/>','file'=>'<path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6m-6 4h6"/>','dots'=>'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>'];return '<svg width="'.$s.'" height="'.$s.'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'.($p[$n]??$p['file']).'</svg>';}
@@ -457,14 +458,13 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                                 announcements.</span>
                         </div>
                     </div>
-                    <article class="panel list-page"><?php foreach(array_slice($properties,0,8) as $p):?><div
-                            class="list-row">
+                    <article class="panel list-page"><?php foreach($notifications as $notification):?><div class="list-row">
                             <div class="list-icon"><?=ico('bell')?></div>
-                            <span><strong><?=!empty($p['is_approved'])?'Approval received':'Property submitted'?></strong>
-                                <p><?=e($p['title'])?> · <?=!empty($p['is_approved'])?'Approved':'Awaiting review'?></p>
-                            </span><small><?=e(date('M j, Y',strtotime($p['created_at'])))?></small>
-                        </div><?php endforeach;?><?php if(!$properties):?><div class="simple-empty">You are all caught
-                            up. New updates will appear here.</div><?php endif;?></article>
+                            <span><strong><?=e($notification['title'])?></strong>
+                                <p><?=e($notification['message'])?></p>
+                            </span><small><?=e(date('M j, Y g:i A',strtotime($notification['created_at'])))?><?=empty($notification['is_read'])?' · New':''?></small>
+                        </div><?php endforeach;?><?php if(!$notifications):?><div class="simple-empty">You are all caught
+                            up. New bids, purchases, and account updates will appear here.</div><?php endif;?></article>
                 </section><?php endif;?>
             </div>
         </main>
