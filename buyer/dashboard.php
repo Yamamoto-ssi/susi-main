@@ -246,7 +246,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                             <?=buyer_icon('arrow',14)?></a>
                     </div>
                 </article><?php endforeach;?></div>
-            <?php else:?>
+            <?php elseif($tab==='my-bids'):?>
             <section class="page-intro"><span class="eyebrow">YOUR ACTIVITY</span>
                 <h1>My bidding activity</h1>
                 <p>Keep track of the offers you've placed on HomeBid properties.</p>
