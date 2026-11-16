@@ -35,7 +35,7 @@ $code = trim((string)($_GET['code'] ?? ''));
 $localGoogleConfig = is_file(__DIR__ . '/config/google.local.php') ? require __DIR__ . '/config/google.local.php' : [];
 if (!is_array($localGoogleConfig)) $localGoogleConfig = [];
 $clientId = getenv('GOOGLE_CLIENT_ID') ?: (string)($localGoogleConfig['client_id'] ?? '44077547718-4nesakkabijeqadjsse1fq82knq0rm1n.apps.googleusercontent.com');
-$clientSecret = getenv('GOOGLE_CLIENT_SECRET') ?: (string)($localGoogleConfig['client_secret'] ?? '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');
+$clientSecret = getenv('GOOGLE_CLIENT_SECRET') ?: (string)($localGoogleConfig['client_secret'] ?? '');
 $redirectUri = getenv('GOOGLE_REDIRECT_URI') ?: 'http://localhost/susi/google-callback.php';
 
 if ($code === '') {
