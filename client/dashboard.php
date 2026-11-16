@@ -562,7 +562,11 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                 const provinces = await loadPsgcList(psgcBase + '/regions/' + encodeURIComponent(regionSelect.value) + '/provinces?limit=100');
                 if (provinces.length) {
                     fillSelect(provinceSelect, provinces, 'Select province');
-                    addressStatus.textContent = 'Now select a province.';
+                    const independentOption = document.createElement('option');
+                    independentOption.value = 'none';
+                    independentOption.textContent = 'Independent city / special area';
+                    provinceSelect.appendChild(independentOption);
+                    addressStatus.textContent = 'Now select a province or an independent city.';
                 } else {
                     // NCR has no provinces; show its cities/municipalities directly.
                     provinceField.hidden = true;
@@ -580,16 +584,20 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
 
         provinceSelect.addEventListener('change', async () => {
             const selectedProvince = provinceSelect.options[provinceSelect.selectedIndex];
-            provinceNameInput.value = selectedProvince && provinceSelect.value ? selectedProvince.textContent : '';
+            const independent = provinceSelect.value === 'none';
+            provinceNameInput.value = selectedProvince && provinceSelect.value && !independent ? selectedProvince.textContent : '';
             cityNameInput.value = '';
             resetSelect(citySelect, 'Loading cities / municipalities...');
             if (!provinceSelect.value) {
-                addressStatus.textContent = 'Choose a province to continue.';
+                addressStatus.textContent = 'Choose a province or independent city.';
                 return;
             }
             addressStatus.textContent = 'Loading cities and municipalities...';
             try {
-                const cities = await loadPsgcList(psgcBase + '/provinces/' + encodeURIComponent(provinceSelect.value) + '/cities-municipalities?limit=500');
+                const citiesUrl = independent
+                    ? psgcBase + '/regions/' + encodeURIComponent(regionSelect.value) + '/cities-municipalities?province=none&limit=500'
+                    : psgcBase + '/provinces/' + encodeURIComponent(provinceSelect.value) + '/cities-municipalities?limit=500';
+                const cities = await loadPsgcList(citiesUrl);
                 fillSelect(citySelect, cities, 'Select city / municipality');
                 addressStatus.textContent = 'Select your city or municipality.';
             } catch (error) {
