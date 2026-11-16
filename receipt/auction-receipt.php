@@ -1,14 +1,15 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/../config/auth.php';
-$userId = require_roles(['Buyer']);
+$userId = require_roles(['Buyer','Staff','Administrator']);
+$isBuyer = (($_SESSION['role'] ?? '') === 'Buyer');
 require_once __DIR__.'/../config/db.php';
 function bh($v): string { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'); }
 function buyer_money($v): string { return '₱' . number_format((float)$v, 2); }
 function buyer_one(mysqli $conn, string $sql, array $args = []): array { $s = hb_query($conn, $sql, $args); return hb_fetch_one($s) ?: []; }
 $paymentId = filter_var($_GET['payment_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 if (!$paymentId) { http_response_code(404); exit('Receipt not found.'); }
-$receiptData = buyer_one($conn, "SELECT cp.id, cp.amount, cp.external_id, cp.invoice_id, cp.created_at, p.title, p.property_type, p.price, p.location, u.username, u.email, u.phone_number, u.mailing_address FROM checkout_payments cp JOIN properties p ON p.id=cp.property_id JOIN users u ON u.id=cp.user_id WHERE cp.id=? AND cp.user_id=? AND cp.payment_type='auction' AND cp.status='paid' LIMIT 1", [$paymentId, $userId]);
+$receiptData = buyer_one($conn, "SELECT cp.id, cp.amount, cp.external_id, cp.invoice_id, cp.created_at, p.title, p.property_type, p.price, p.location, u.username, u.email, u.phone_number, u.mailing_address FROM checkout_payments cp JOIN properties p ON p.id=cp.property_id JOIN users u ON u.id=cp.user_id WHERE cp.id=? AND cp.payment_type='auction' AND cp.status='paid'" . ($isBuyer ? " AND cp.user_id=?" : "") . " LIMIT 1", $isBuyer ? [$paymentId, $userId] : [$paymentId]);
 if (!$receiptData) { http_response_code(404); exit('A paid auction receipt could not be found for this account.'); }
 $buyerName=$receiptData['username']?:'Buyer'; $buyerEmail=$receiptData['email']?:'';
 $buyerAddress=$receiptData['mailing_address']?:$receiptData['location']; $buyerPhone=$receiptData['phone_number']?:'Not provided';
