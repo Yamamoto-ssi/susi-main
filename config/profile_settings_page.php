@@ -73,15 +73,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             try {
                 require_once dirname(__DIR__) . '/vendor/autoload.php';
-                $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
+                $mailerClass = 'PHPMailer\\PHPMailer\\PHPMailer';
+                $mailer = new $mailerClass(true);
                 $mailer->isSMTP();
                 $mailer->Host = $smtpHost;
                 $mailer->SMTPAuth = true;
                 $mailer->Username = $smtpUser;
                 $mailer->Password = $smtpPass;
                 $mailer->Port = $smtpPort;
-                if ($smtpSecure === 'ssl') $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
-                else $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+                $mailer->SMTPSecure = ($smtpSecure === 'ssl') ? 'ssl' : 'tls';
                 $mailer->CharSet = 'UTF-8';
                 $mailer->setFrom($fromEmail, $fromName);
                 $mailer->addAddress((string)$user['email']);
