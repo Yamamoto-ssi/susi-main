@@ -34,12 +34,17 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
         $page = 'properties';
     } else {
-        $t=trim($_POST['title']??''); $d=trim($_POST['description']??''); $l=trim($_POST['location']??'');
+        $t=trim($_POST['title']??''); $d=trim($_POST['description']??'');
+        $regionName=trim($_POST['region_name']??'');
+        $provinceName=trim($_POST['province_name']??'');
+        $cityName=trim($_POST['city_name']??'');
+        $lotNumber=trim($_POST['lot_number']??'');
+        $l=implode(', ', array_filter([$lotNumber,$cityName,$provinceName,$regionName],fn($part)=>$part!==''));
         $lot=(float)($_POST['lot_area']??0); $floor=(float)($_POST['floor_area']??0); $price=(float)($_POST['price']??0);
         $savedFiles=[];
         $dbTransaction=false;
         try {
-            if(!$t||!$d||!$l||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete all property fields with valid positive values.');
+            if(!$t||!$d||!$regionName||!$cityName||!$lotNumber||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete all property fields, including region, city/municipality, and lot or house number.');
             if(!isset($_FILES['thumbnail'])||$_FILES['thumbnail']['error']!==UPLOAD_ERR_OK) throw new RuntimeException('Please upload a main property thumbnail.');
             $extraFiles=[];
             if(isset($_FILES['photos'])&&is_array($_FILES['photos']['name'])) {
@@ -435,9 +440,22 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
             </div>
             <form method="post" enctype="multipart/form-data">
                 <div class="form-grid"><label class="full">Property title<input name="title" required maxlength="150"
-                            placeholder="e.g. Bayside Family Residence"></label><label class="full">Property
-                        address<input name="location" required maxlength="255"
-                            placeholder="Street, city, province"></label><label>Lot area (sq m)<input name="lot_area"
+                            placeholder="e.g. Bayside Family Residence"></label><label class="full">Region
+                        <select id="propertyRegion" name="region_code" required><option value="">Loading regions...</option></select>
+                        <input type="hidden" name="region_name" id="regionName">
+                    </label>
+                    <label class="full" id="provinceField">Province
+                        <select id="propertyProvince" name="province_code" disabled required><option value="">Select a region first</option></select>
+                        <input type="hidden" name="province_name" id="provinceName">
+                    </label>
+                    <label class="full">City / Municipality
+                        <select id="propertyCity" name="city_code" disabled required><option value="">Select a province first</option></select>
+                        <input type="hidden" name="city_name" id="cityName">
+                    </label>
+                    <label class="full">Lot number / House number
+                        <input name="lot_number" required maxlength="100" placeholder="e.g. Lot 12, Block 5 or House No. 24">
+                    </label>
+                    <p class="full address-status" id="addressStatus" role="status">Loading Philippine regions...</p><label>Lot area (sq m)<input name="lot_area"
                             required type="number" min=".01" step=".01"></label><label>Floor area (sq m)<input
                             name="floor_area" required type="number" min=".01" step=".01"></label><label>Starting bid
                         price<input name="price" required type="number" min=".01" step=".01"></label><label
@@ -476,6 +494,117 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
         document.getElementById('propertyModal').hidden = true;
         document.body.style.overflow = ''
     }
+    // Cascading Philippine Standard Geographic Code (PSGC) address selectors.
+    const psgcBase = 'https://psgc.billyjamesramos.com/api/v1';
+    const regionSelect = document.getElementById('propertyRegion');
+    const provinceSelect = document.getElementById('propertyProvince');
+    const citySelect = document.getElementById('propertyCity');
+    const provinceField = document.getElementById('provinceField');
+    const addressStatus = document.getElementById('addressStatus');
+    const regionNameInput = document.getElementById('regionName');
+    const provinceNameInput = document.getElementById('provinceName');
+    const cityNameInput = document.getElementById('cityName');
+
+    async function loadPsgcList(url) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Location data could not be loaded.');
+        const result = await response.json();
+        if (!Array.isArray(result.data)) throw new Error('Unexpected location data response.');
+        return result.data;
+    }
+
+    function resetSelect(select, placeholder) {
+        select.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = placeholder;
+        select.appendChild(option);
+        select.disabled = true;
+    }
+
+    function fillSelect(select, items, placeholder) {
+        resetSelect(select, placeholder);
+        items.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.code;
+            option.textContent = item.name;
+            select.appendChild(option);
+        });
+        select.disabled = false;
+    }
+
+    if (regionSelect && provinceSelect && citySelect) {
+        loadPsgcList(psgcBase + '/regions?limit=100')
+            .then(regions => {
+                fillSelect(regionSelect, regions, 'Select region');
+                addressStatus.textContent = 'Choose a region to load its provinces.';
+            })
+            .catch(() => {
+                resetSelect(regionSelect, 'Unable to load regions');
+                addressStatus.textContent = 'Could not load Philippine locations. Check your internet connection and refresh the page.';
+            });
+
+        regionSelect.addEventListener('change', async () => {
+            const selectedRegion = regionSelect.options[regionSelect.selectedIndex];
+            regionNameInput.value = selectedRegion && regionSelect.value ? selectedRegion.textContent : '';
+            provinceNameInput.value = '';
+            cityNameInput.value = '';
+            provinceSelect.required = true;
+            provinceField.hidden = false;
+            resetSelect(provinceSelect, 'Loading provinces...');
+            resetSelect(citySelect, 'Select a province first');
+            if (!regionSelect.value) {
+                addressStatus.textContent = 'Choose a region to continue.';
+                return;
+            }
+            addressStatus.textContent = 'Loading provinces...';
+            try {
+                const provinces = await loadPsgcList(psgcBase + '/regions/' + encodeURIComponent(regionSelect.value) + '/provinces?limit=100');
+                if (provinces.length) {
+                    fillSelect(provinceSelect, provinces, 'Select province');
+                    addressStatus.textContent = 'Now select a province.';
+                } else {
+                    // NCR has no provinces; show its cities/municipalities directly.
+                    provinceField.hidden = true;
+                    provinceSelect.required = false;
+                    const cities = await loadPsgcList(psgcBase + '/regions/' + encodeURIComponent(regionSelect.value) + '/cities-municipalities?province=none&limit=500');
+                    fillSelect(citySelect, cities, 'Select city / municipality');
+                    addressStatus.textContent = 'This region has no provinces. Select your city or municipality.';
+                }
+            } catch (error) {
+                addressStatus.textContent = 'Unable to load provinces or cities. Please try selecting the region again.';
+                resetSelect(provinceSelect, 'Unable to load provinces');
+                resetSelect(citySelect, 'Unable to load cities');
+            }
+        });
+
+        provinceSelect.addEventListener('change', async () => {
+            const selectedProvince = provinceSelect.options[provinceSelect.selectedIndex];
+            provinceNameInput.value = selectedProvince && provinceSelect.value ? selectedProvince.textContent : '';
+            cityNameInput.value = '';
+            resetSelect(citySelect, 'Loading cities / municipalities...');
+            if (!provinceSelect.value) {
+                addressStatus.textContent = 'Choose a province to continue.';
+                return;
+            }
+            addressStatus.textContent = 'Loading cities and municipalities...';
+            try {
+                const cities = await loadPsgcList(psgcBase + '/provinces/' + encodeURIComponent(provinceSelect.value) + '/cities-municipalities?limit=500');
+                fillSelect(citySelect, cities, 'Select city / municipality');
+                addressStatus.textContent = 'Select your city or municipality.';
+            } catch (error) {
+                addressStatus.textContent = 'Unable to load cities. Please select the province again.';
+                resetSelect(citySelect, 'Unable to load cities');
+            }
+        });
+
+        citySelect.addEventListener('change', () => {
+            const selectedCity = citySelect.options[citySelect.selectedIndex];
+            cityNameInput.value = selectedCity && citySelect.value ? selectedCity.textContent : '';
+            if (citySelect.value) addressStatus.textContent = 'Location selected. Enter the lot or house number.';
+        });
+    }
+
     function previewImageFiles(input, preview, maxFiles) {
         if (!input || !preview) return;
         input.addEventListener('change', () => {
