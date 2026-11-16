@@ -186,7 +186,7 @@ $totalPaid=$receipt['item']['amount_paid']+$receipt['item']['processing_fee']-$r
 
     <div class="no-print-bar">
         <span><strong>Printable Buyer Receipt:</strong> Press <b>Ctrl + P</b> (or <b>Cmd + P</b>) to print or save as PDF.</span>
-        <a href="dashboard.php?tab=my-bids">&larr; Back to My Bids</a>
+        <a href="../buyer/dashboard.php?tab=my-bids">&larr; Back to My Bids</a>
     </div>
 
     <div class="receipt-page">
@@ -271,7 +271,7 @@ $totalPaid=$receipt['item']['amount_paid']+$receipt['item']['processing_fee']-$r
         </table>
 
         <div class="temp-note">
-            <span>Official Winning Bid Receipt — Temporary Preview Record</span>
+            <span>Official Winning Bid Receipt — Payment verified by HomeBid</span>
             <span>Verified Buyer Account: <?= bh($receipt['buyer_name']) ?></span>
         </div>
     </div>
