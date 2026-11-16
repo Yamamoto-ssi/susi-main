@@ -9,18 +9,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  verify_csrf();
  $id=filter_input(INPUT_POST,'property_id',FILTER_VALIDATE_INT);
  $decision=$_POST['decision']??'';
- if($id && $decision==='approve'){
-  $q = hb_query($conn, 'UPDATE properties SET is_approved=1 WHERE id=? AND is_approved=0', [$id]);
-  if(mysqli_affected_rows($conn)){
-   $log = hb_query($conn, 'INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)', [$staffId,'Approved property listing','property',$id,$_SERVER['REMOTE_ADDR']??null]);
-   $message='Property approved successfully.';
-  } else { $error='This listing was already reviewed or could not be found.'; }
+ if($id && in_array($decision,['approve','admin_approval','needs_revision'],true)){
+  $feedback=trim((string)($_POST['feedback']??''));
+  if($decision==='needs_revision' && $feedback==='') $error='Please explain what the seller needs to revise.';
+  else {$status=$decision==='approve'?'approved':$decision;$approved=$decision==='approve'?1:0;
+   hb_query($conn,'UPDATE properties SET is_approved=?,review_status=?,review_feedback=?,reviewed_by=?,reviewed_at=NOW() WHERE id=? AND is_approved=0',[$approved,$status,$decision==='needs_revision'?$feedback:null,$staffId,$id]);
+   if(mysqli_affected_rows($conn)){if($decision==='approve')hb_query($conn,"UPDATE properties SET status=IF(EXISTS(SELECT 1 FROM auctions WHERE property_id=?),'Auction','Available') WHERE id=?",[$id,$id]);$action=$decision==='approve'?'Approved property submission':($decision==='admin_approval'?'Forwarded property for administrator approval':'Requested property revision');hb_query($conn,'INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)',[$staffId,$action,'property',$id,$_SERVER['REMOTE_ADDR']??null]);$message=$decision==='approve'?'Property approved successfully.':($decision==='admin_approval'?'Submission forwarded to the administrator.':'Revision request sent to the seller.');}else $error='This submission was already reviewed or could not be found.';
+  }
  }
 }
 $counts=hb_fetch_one(hb_query($conn, "SELECT COUNT(*) total,COALESCE(SUM(is_approved=0),0) pending,COALESCE(SUM(is_approved=1),0) approved,COALESCE(SUM(status='Sold'),0) sold FROM properties"));
 $auctionCounts=hb_fetch_one(hb_query($conn, "SELECT COUNT(*) total,COALESCE(SUM(status='active'),0) active FROM auctions"));
 $bidCount=(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM bids'));
-$pending=hb_fetch_all(hb_query($conn, 'SELECT p.*,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 ORDER BY p.created_at ASC'));
+$pending=hb_fetch_all(hb_query($conn, 'SELECT p.*,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 AND p.review_status IN ('pending','admin_approval') ORDER BY p.created_at ASC'));
 $recent=hb_fetch_all(hb_query($conn, 'SELECT p.*,u.username FROM properties p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 12'));
 $auctions=hb_fetch_all(hb_query($conn, 'SELECT a.*,p.title FROM auctions a JOIN properties p ON p.id=a.property_id ORDER BY a.created_at DESC LIMIT 12'));
 $logs=hb_fetch_all(hb_query($conn, 'SELECT l.*,u.username FROM activity_logs l LEFT JOIN users u ON u.id=l.user_id ORDER BY l.created_at DESC LIMIT 12'));
@@ -188,7 +189,7 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
                             <th>LOCATION</th>
                             <th>PRICE</th>
                             <th>SUBMITTED</th>
-                            <th>DECISION</th>
+                            <th>REVIEW DECISION</th>
                         </tr>
                     </thead>
                     <tbody><?php if(!$pending):?><tr>
@@ -200,10 +201,7 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
                             <td>₱<?=number_format((float)$p['price'],2)?></td>
                             <td><?=sh($p['created_at'])?></td>
                             <td>
-                                <form method="post" style="display:flex;gap:6px"><input type="hidden" name="csrf_token"
-                                        value="<?=sh(csrf_token())?>"><input type="hidden" name="property_id"
-                                        value="<?=(int)$p['id']?>"><button class="hb-btn hb-yes" name="decision"
-                                        value="approve">Approve</button></form>
+                                <form method="post" style="display:grid;gap:7px;min-width:190px"><input type="hidden" name="csrf_token" value="<?=sh(csrf_token())?>"><input type="hidden" name="property_id" value="<?=(int)$p['id']?>"><select name="decision" required><option value="">Choose action</option><option value="approve">Accept / Approve</option><option value="admin_approval">Admin approval</option><option value="needs_revision">Needs revision</option></select><textarea name="feedback" placeholder="Required when revision is needed" rows="2"></textarea><button class="hb-btn hb-yes" type="submit">Submit decision</button></form>
                             </td>
                         </tr><?php endforeach;?></tbody>
                 </table>
@@ -229,7 +227,7 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
                             <td><?=sh($p['username']?:'Unknown')?></td>
                             <td>₱<?=number_format((float)$p['price'],2)?></td>
                             <td><?=sh($p['status'])?></td>
-                            <td><?=$p['is_approved']?'Approved':'Pending'?></td>
+                            <td><?=sh(ucwords(str_replace('_',' ',$p['review_status']??($p['is_approved']?'approved':'pending'))))?><?php if(!empty($p['review_feedback'])):?><br><small><?=sh($p['review_feedback'])?></small><?php endif;?></td>
                         </tr><?php endforeach;?></tbody>
                 </table>
             </div>
