@@ -379,7 +379,8 @@ $nav=[['dashboard.php','Dashboard','dashboard'],['approvals.php','Approvals','ap
                         <thead>
                             <tr><?php foreach($columns as $label):?><th><?=sm_h($label)?></th>
                                 <?php endforeach;?><?php if(in_array($module,['approvals','properties','bidding','roles_sec','notification'],true)):?>
-                                <th>Actions</th><?php endif;?></tr>
+                                <th>Actions</th><?php endif;?>
+                            </tr>
                         </thead>
                         <tbody>
                             <?php if(!$rows):?><tr>
@@ -404,10 +405,11 @@ $nav=[['dashboard.php','Dashboard','dashboard'],['approvals.php','Approvals','ap
                                                 value="<?=(int)$row['id']?>"><select
                                                 name="status"><?php foreach(['Available','Reserved','Sold','Auction'] as $s):?>
                                                 <option <?=$row['status']===$s?'selected':''?>><?=$s?></option>
-                                                <?php endforeach;?></select><button class="module-btn"
-                                                type="submit">Save</button></form>
+                                                <?php endforeach;?>
+                                            </select><button class="module-btn" type="submit">Save</button>
+                                        </form>
                                         <form method="post"><input type="hidden" name="csrf_token"
-                                                value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action"
+                                                value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action"  
                                                 value="feature"><input type="hidden" name="id"
                                                 value="<?=(int)$row['id']?>"><button class="module-btn alt"
                                                 type="submit"><?=((int)$row['is_featured']?'Unfeature':'Feature')?></button>
@@ -418,8 +420,9 @@ $nav=[['dashboard.php','Dashboard','dashboard'],['approvals.php','Approvals','ap
                                                 name="id" value="<?=(int)$row['id']?>"><select
                                                 name="status"><?php foreach(['upcoming','active','ended','cancelled'] as $s):?>
                                                 <option <?=$row['status']===$s?'selected':''?>><?=$s?></option>
-                                                <?php endforeach;?></select><button class="module-btn"
-                                                type="submit">Update</button></form><?php endif;?>
+                                                <?php endforeach;?>
+                                            </select><button class="module-btn" type="submit">Update</button></form>
+                                        <?php endif;?>
                                         <?php if($module==='notification'):?><form method="post" class="module-form">
                                             <input type="hidden" name="csrf_token"
                                                 value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action"
@@ -427,8 +430,9 @@ $nav=[['dashboard.php','Dashboard','dashboard'],['approvals.php','Approvals','ap
                                                 value="<?=(int)$row['id']?>"><select
                                                 name="status"><?php foreach(['pending','responded','closed'] as $s):?>
                                                 <option <?=$row['status']===$s?'selected':''?>><?=$s?></option>
-                                                <?php endforeach;?></select><button class="module-btn"
-                                                type="submit">Update</button></form><?php endif;?>
+                                                <?php endforeach;?>
+                                            </select><button class="module-btn" type="submit">Update</button>
+                                        </form><?php endif;?>
                                         <?php if($module==='roles_sec' && $isAdmin && (int)$row['id']!==$staffId):?>
                                         <form method="post" class="module-form"><input type="hidden" name="csrf_token"
                                                 value="<?=sm_h(csrf_token())?>"><input type="hidden" name="action"
@@ -436,10 +440,12 @@ $nav=[['dashboard.php','Dashboard','dashboard'],['approvals.php','Approvals','ap
                                                 value="<?=(int)$row['id']?>"><select
                                                 name="role"><?php foreach(['Buyer','Staff','Administrator'] as $r):?>
                                                 <option <?=$row['role']===$r?'selected':''?>><?=$r?></option>
-                                                <?php endforeach;?></select><button class="module-btn"
-                                                type="submit">Save role</button></form><?php endif;?>
+                                                <?php endforeach;?>
+                                            </select><button class="module-btn" type="submit">Save role</button></form>
+                                        <?php endif;?>
                                     </div>
-                                </td><?php endif;?></tr><?php endforeach;?></tbody>
+                                </td><?php endif;?>
+                            </tr><?php endforeach;?></tbody>
                     </table>
                 </div>
             </section>
