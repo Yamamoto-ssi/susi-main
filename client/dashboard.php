@@ -412,11 +412,12 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                                         <th>CURRENT BID</th>
                                         <th>STARTS</th>
                                         <th>ENDS</th>
+                                        <th>AUCTION APPROVAL</th>
                                         <th>STATUS</th>
                                     </tr>
                                 </thead>
                                 <tbody><?php if(!$auctions):?><tr>
-                                        <td colspan="7" class="empty-row">No auctions have been created for your
+                                        <td colspan="8" class="empty-row">No auctions have been created for your
                                             properties yet.</td>
                                     </tr><?php endif;?><?php foreach($auctions as $a):?><tr>
                                         <td><?=e($a['title'])?></td>
@@ -425,6 +426,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                                         <td><?=peso($a['current_bid']??$a['starting_bid']??0)?></td>
                                         <td><?=e($a['start_time']??'—')?></td>
                                         <td><?=e($a['end_time']??'—')?></td>
+                                        <td><?=badge(ucwords(str_replace('_',' ',$a['review_status']??'pending')))?><?php if(!empty($a['review_feedback'])):?><small class="subline"><?=e($a['review_feedback'])?></small><?php endif;?></td>
                                         <td><?=badge(ucfirst($a['status']))?></td>
                                     </tr><?php endforeach;?></tbody>
                             </table>
