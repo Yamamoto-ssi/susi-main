@@ -25,3 +25,28 @@
 .timeline-copy small{display:block;margin-top:4px;color:var(--muted);font-size:11px}
 .timeline-item time{color:var(--muted);font-size:11px;white-space:nowrap}
 @media(max-width:650px){.timeline-item{grid-template-columns:34px minmax(0,1fr);gap:10px}.timeline-item time{grid-column:2;margin-top:-5px}.timeline-dot{width:32px;height:32px}}
+
+
+/* HomeBid minimal UI refresh */
+:root{--navy:#172b3b;--ink:#243342;--muted:#778493;--gold:#9caa9b;--gold-light:#edf1ed;--paper:#f6f7f6;--line:#e5e9e6;--green:#3e775c}
+body{font-size:14px;background:#f6f7f6;-webkit-font-smoothing:antialiased}
+.sidebar{width:254px;padding:0 18px;background:#172b3b;box-shadow:4px 0 22px #1425360a}
+.brand{height:76px}.brand-symbol{border:0;border-radius:11px;background:#e8eee9;color:#284536;font-size:25px}
+.side-caption{font-size:10px;letter-spacing:.12em}.account-mini{border-radius:12px;background:#ffffff0d}
+.sidebar nav a,.sidebar nav button{border-radius:9px;transition:background .18s,color .18s}
+.sidebar nav a:hover{background:#ffffff12}
+.main{margin-left:254px;min-width:0}
+.main,.content,.page-content{min-width:0}
+.content,.page-content{padding:30px clamp(18px,3vw,42px)}
+.page-heading h1,.welcome h1{font-family:Manrope,sans-serif;letter-spacing:-.04em}
+.panel,.activity-panel,.tip-panel,.stat-card,.property-card,.property-panel{border:1px solid #e6eae7!important;border-radius:15px!important;box-shadow:0 5px 20px #1d352508!important}
+.panel-heading,.panel-head{border-bottom-color:#edf0ed}
+button,.btn,.primary,.card-link{border-radius:9px}
+input,select,textarea{border:1px solid #dfe5e1!important;border-radius:9px!important;min-height:42px;background:#fff}
+input:focus,select:focus,textarea:focus{outline:3px solid #dfe9df!important;border-color:#8da594!important}
+table{border-collapse:separate;border-spacing:0}
+th{background:#f7f9f7;color:#647268;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+td,th{padding:13px 14px}
+@media(max-width:900px){.sidebar{width:230px}.main{margin-left:230px}}
+@media(max-width:760px){.sidebar{transform:translateX(-100%);transition:transform .22s ease}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.content,.page-content{padding:20px 16px 32px}.property-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.content,.page-content{padding:16px 13px 28px}.property-grid{grid-template-columns:1fr}.panel,.activity-panel,.tip-panel{border-radius:12px!important}.timeline-item{grid-template-columns:32px minmax(0,1fr)}}
