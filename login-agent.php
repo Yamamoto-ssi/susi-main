@@ -33,25 +33,21 @@ try {
         $name = trim((string)($_POST['name'] ?? ''));
         if ($name === '' || strlen($password) < 8) respond(422, ['ok'=>false,'message'=>'Enter your name and a password with at least 8 characters.']);
         $username = function_exists('mb_substr') ? mb_substr($name, 0, 50) : substr($name, 0, 50);
-        $check = $conn->prepare('SELECT id FROM users WHERE email=? OR username=? LIMIT 1');
-        $check->execute([$email, $username]);
-        if ($check->fetch()) respond(409, ['ok'=>false,'message'=>'That email or username is already registered.']);
-        $insert = $conn->prepare("INSERT INTO users (username,email,password,role,is_verified) VALUES (?,?,?,'Buyer',0)");
-        $insert->execute([$username,$email,password_hash($password,PASSWORD_DEFAULT)]);
-        $_SESSION['user_id']=(int)$conn->lastInsertId(); $_SESSION['role']='Buyer'; $_SESSION['username']=$username;
+        $check = hb_query($conn, 'SELECT id FROM users WHERE email=? OR username=? LIMIT 1', [$email, $username]);
+        if (hb_fetch_one($check)) respond(409, ['ok'=>false,'message'=>'That email or username is already registered.']);
+        $insert = hb_query($conn, "INSERT INTO users (username,email,password,role,is_verified) VALUES (?,?,?,'Buyer',0)", [$username,$email,password_hash($password,PASSWORD_DEFAULT)]);
+        $_SESSION['user_id']=(int)mysqli_insert_id($conn); $_SESSION['role']='Buyer'; $_SESSION['username']=$username;
         respond(200,['ok'=>true,'message'=>'Account created.','redirect'=>'buyer/dashboard.php']);
     }
 
-    $q = $conn->prepare('SELECT id,username,password,role FROM users WHERE email=? LIMIT 1');
-    $q->execute([$email]);
-    $account = $q->fetch();
+    $q = hb_query($conn, 'SELECT id,username,password,role FROM users WHERE email=? LIMIT 1', [$email]);
+    $account = hb_fetch_one($q);
     if (!$account) respond(401,['ok'=>false,'message'=>'Email or password is incorrect.']);
     $stored = (string)$account['password'];
     $valid = password_verify($password, $stored);
     if (!$valid && $stored !== '' && !str_starts_with($stored, '$') && hash_equals($stored, $password)) {
         $valid = true;
-        $up = $conn->prepare('UPDATE users SET password=? WHERE id=?');
-        $up->execute([password_hash($password,PASSWORD_DEFAULT),$account['id']]);
+        $up = hb_query($conn, 'UPDATE users SET password=? WHERE id=?', [password_hash($password,PASSWORD_DEFAULT),$account['id']]);
     }
     if (!$valid) respond(401,['ok'=>false,'message'=>'Email or password is incorrect.']);
 
@@ -74,6 +70,6 @@ try {
     $_SESSION['username']=$account['username'];
     respond(200,['ok'=>true,'message'=>'Login successful.','redirect'=>$redirect]);
 } catch (Throwable $e) {
-    error_log('HomeBid login-agent error: '.$e->getMessage().' in '.$e->getFile().':'.$e->getLine());
+    error_log('HomeBid login-agent error: '.'Database operation failed'.' in '.''.':'.0);
     respond(500,['ok'=>false,'message'=>'The server could not complete the login. Check the PHP error log; a database table or column may need to be corrected.']);
 }
