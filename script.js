@@ -11,7 +11,6 @@ const form=document.getElementById("accountForm");
 const formMessage=document.getElementById("formMessage");
 const nameField=document.getElementById("nameField");
 const usernameField=document.getElementById("usernameField");
-const roleField=document.getElementById("roleField");
 const loginIdentifierLabel=document.getElementById("loginIdentifierLabel");
 const nameInput=form?.elements.namedItem("name");
 const passwordInput=form?.elements.namedItem("password");
@@ -33,7 +32,6 @@ function openModal(type){
  if(nameField){nameField.hidden=login;nameInput.required=!login;}
  const usernameInput=form.elements.namedItem("username");
  if(usernameField){usernameField.hidden=login;usernameInput.required=!login;}
- if(roleField)roleField.hidden=login;
  if(googleSignInButton)googleSignInButton.href=login?"google-start.php?intent=login":"google-start.php?intent=signup";
  if(googleSignInSection){googleSignInSection.hidden=false;}
  if(passwordInput){passwordInput.autocomplete=login?"current-password":"new-password";passwordInput.minLength=login?0:8;}
@@ -79,7 +77,6 @@ form?.addEventListener("submit",async event=>{
  formMessage.textContent="Please wait…";
  const data=new FormData(form);
  data.set("action",mode);
- if(mode==="signup")data.set("role",form.elements.namedItem("role").value);
  try{
   const response=await fetch("login-agent.php",{method:"POST",body:data,headers:{"Accept":"application/json"}});
   const result=await response.json();
