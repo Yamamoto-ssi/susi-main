@@ -54,3 +54,14 @@ form:not(.logout-form){padding:22px 24px 24px}.form-grid{display:grid;grid-templ
 #propertyModal .form-grid select{width:100%;min-width:0;height:38px;padding:0 10px;color:#35485a;background:#fff;border:1px solid #dfe3e4;border-radius:6px;font:inherit;font-size:10px}
 #propertyModal .form-grid select:disabled{color:#9aa3ac;background:#f5f6f5;cursor:not-allowed}
 #provinceField[hidden]{display:none}
+
+
+/* Text-only add property / auction choice popup */
+.add-choice-modal{width:min(520px,100%)}
+.add-choice-list{padding:20px 24px 24px;display:grid;gap:12px}
+.add-choice-option{width:100%;padding:17px 18px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:left;background:#fff;border:1px solid #e2e5e6;border-radius:9px;cursor:pointer;transition:border-color .18s,background .18s,transform .18s}
+.add-choice-option:hover{border-color:#b78c43;background:#fcfaf6;transform:translateY(-1px)}
+.add-choice-option strong{color:#1d2b3a;font:600 15px Manrope,sans-serif}
+.add-choice-option span{color:#758292;font-size:10px;line-height:1.6}
+.add-choice-option em{margin-top:3px;color:#94713b;font-size:9px;font-style:normal;font-weight:700}
+@media(max-width:420px){.add-choice-list{padding:16px}}
