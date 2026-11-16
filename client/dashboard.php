@@ -319,8 +319,9 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                                 placeholder="Search by property name or location..."></label><select id="filterStatus">
                             <option value="">All statuses</option>
                             <option>Pending</option>
+                            <option>Admin Approval</option>
+                            <option>Needs Revision</option>
                             <option>Approved</option>
-                            <option>Rejected</option>
                         </select></div>
                     <article class="panel property-table">
                         <div class="table-wrap">
