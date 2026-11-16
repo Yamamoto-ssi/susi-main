@@ -48,7 +48,7 @@ function homebid_money($amount): string {
     <link
         href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20261116-2">
 </head>
 
 <body>
@@ -252,7 +252,7 @@ function homebid_money($amount): string {
             <h2 id="modalTitle">Create your account</h2>
             <p class="muted" id="modalDescription">Join HomeBid and discover your next home.</p>
             <form id="accountForm" novalidate>
-                <label id="nameField">Full name<input type="text" name="name" placeholder="Your full name"
+                <label id="nameField" hidden>Full name<input type="text" name="name" placeholder="Your full name"
                         autocomplete="name"></label>
                 <label>Email address<input type="email" name="email" placeholder="you@example.com" autocomplete="email"
                         required></label>
@@ -275,7 +275,7 @@ function homebid_money($amount): string {
         window.HOMEBID_GOOGLE_CLIENT_ID = <?= json_encode($googleClientId, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="script.js"></script>
+    <script src="script.js?v=20261116-2"></script>
 </body>
 
 </html>
