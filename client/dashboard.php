@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             foreach($extraFiles as $file) $savedFiles[]=hb_store_property_image($file);
             mysqli_begin_transaction($conn);
             $dbTransaction=true;
-            hb_query($conn,"INSERT INTO properties(user_id,title,description,location,lot_area,floor_area,price,status,is_approved,image_path) VALUES(?,?,?,?,?,?,?,'Available',0,?)",[$userId,$t,$d,$l,$lot,$floor,$price,$thumbnailPath]);
+            hb_query($conn,"INSERT INTO properties(user_id,title,description,location,region,province,city,barangay,lot_number,lot_area,floor_area,price,status,is_approved,image_path) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,'Available',0,?)",[$userId,$t,$d,$l,$regionName,$provinceName!==''?$provinceName:null,$cityName,$barangayName,$lotNumber,$lot,$floor,$price,$thumbnailPath]);
             $propertyId=mysqli_insert_id($conn);
             for($i=1;$i<count($savedFiles);$i++) hb_query($conn,'INSERT INTO property_images(property_id,image_path) VALUES(?,?)',[$propertyId,$savedFiles[$i]]);
             mysqli_commit($conn);
