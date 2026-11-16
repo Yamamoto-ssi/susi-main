@@ -2,6 +2,8 @@
 declare(strict_types=1);
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/db.php';
+$localMailConfig = __DIR__ . '/mail.local.php';
+if (is_file($localMailConfig)) require_once $localMailConfig;
 
 $profileRole = $profileRole ?? 'Buyer';
 $userId = require_roles($profileRole === 'Seller' ? ['Client'] : ['Buyer']);
