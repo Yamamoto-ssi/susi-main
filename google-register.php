@@ -27,13 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $username = trim((string)($_POST['username'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
-    $role = (string)($_POST['role'] ?? 'Buyer');
+    $role = 'Buyer';
 
     if (!preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
         $error = 'Username must be 3–50 characters and use only letters, numbers, dots, underscores, or hyphens.';
-    } elseif (!in_array($role, ['Buyer','Client'], true)) {
-        $error = 'Please choose Buyer or Seller as your account type.';
-    } elseif (strlen($password) < 8) {
+        } elseif (strlen($password) < 8) {
         $error = 'Your password must be at least 8 characters long.';
     } else {
         try {
@@ -129,20 +127,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <section class="google-register-card">
             <p class="eyebrow">WELCOME TO HOMEBID</p>
             <h1>Complete Your Registration</h1>
-            <p class="intro">Your Google account is verified. Choose your account type, username, and password to finish creating your HomeBid account.</p>
+            <p class="intro">Your Google account is verified. Choose a username and password to create your HomeBid buyer account. You can apply for seller access later.</p>
             <?php if ($error !== ''): ?>
                 <p class="google-register-error" role="alert"><?= h($error) ?></p>
             <?php endif; ?>
             <form method="post" action="google-register.php">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <label>
-                    Account type
-                    <select name="role" required>
-                        <option value="Buyer" <?= $role === 'Buyer' ? 'selected' : '' ?>>Buyer</option>
-                        <option value="Client" <?= $role === 'Client' ? 'selected' : '' ?>>Seller</option>
-                    </select>
-                </label>
-                <label>
+<label>
                     Username
                     <input type="text" name="username" maxlength="50" autocomplete="username" required value="<?= h($username) ?>" placeholder="Choose a username">
                 </label>
