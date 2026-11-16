@@ -9,6 +9,16 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  verify_csrf();
  $id=filter_input(INPUT_POST,'property_id',FILTER_VALIDATE_INT);
  $decision=$_POST['decision']??'';
+ $auctionId=filter_input(INPUT_POST,'auction_id',FILTER_VALIDATE_INT);
+ if($auctionId && ($_POST['action']??'')==='review_auction'){
+  $auctionDecision=$_POST['auction_decision']??'';$feedback=trim((string)($_POST['auction_feedback']??''));
+  if(!in_array($auctionDecision,['approve','admin_approval','needs_revision'],true)) $error='Choose a valid auction review decision.';
+  elseif($auctionDecision==='needs_revision' && $feedback==='') $error='Please explain what needs to be revised in the auction.';
+  else {$auctionStatus=$auctionDecision==='approve'?'approved':$auctionDecision;
+   hb_query($conn,"UPDATE auctions SET review_status=?,review_feedback=?,reviewed_by=?,reviewed_at=NOW() WHERE id=? AND review_status<>'approved'",[$auctionStatus,$auctionDecision==='needs_revision'?$feedback:null,$staffId,$auctionId]);
+   if(mysqli_affected_rows($conn)){hb_query($conn,'INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)',[$staffId,$auctionDecision==='approve'?'Approved auction submission':($auctionDecision==='admin_approval'?'Forwarded auction for administrator approval':'Requested auction revision'),'auction',$auctionId,$_SERVER['REMOTE_ADDR']??null]);$message=$auctionDecision==='approve'?'Auction approved. It can proceed only when its property is approved.':($auctionDecision==='admin_approval'?'Auction forwarded to the administrator.':'Auction revision request sent to the seller.');}else $error='This auction was already approved or could not be found.';
+  }
+ }
  if($id && in_array($decision,['approve','admin_approval','needs_revision'],true)){
   $feedback=trim((string)($_POST['feedback']??''));
   if($decision==='needs_revision' && $feedback==='') $error='Please explain what the seller needs to revise.';
@@ -23,7 +33,8 @@ $auctionCounts=hb_fetch_one(hb_query($conn, "SELECT COUNT(*) total,COALESCE(SUM(
 $bidCount=(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM bids'));
 $pending=hb_fetch_all(hb_query($conn, "SELECT p.*,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 AND p.review_status IN ('pending','admin_approval') ORDER BY p.created_at ASC"));
 $recent=hb_fetch_all(hb_query($conn, 'SELECT p.*,u.username FROM properties p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 12'));
-$auctions=hb_fetch_all(hb_query($conn, 'SELECT a.*,p.title FROM auctions a JOIN properties p ON p.id=a.property_id ORDER BY a.created_at DESC LIMIT 12'));
+$auctions=hb_fetch_all(hb_query($conn, 'SELECT a.*,p.title,p.is_approved FROM auctions a JOIN properties p ON p.id=a.property_id ORDER BY a.created_at DESC LIMIT 30'));
+$pendingAuctions=hb_fetch_all(hb_query($conn, "SELECT a.*,p.title,p.location,p.is_approved,u.username FROM auctions a JOIN properties p ON p.id=a.property_id LEFT JOIN users u ON u.id=p.user_id WHERE a.review_status IN ('pending','admin_approval','needs_revision') ORDER BY a.created_at ASC"));
 $logs=hb_fetch_all(hb_query($conn, 'SELECT l.*,u.username FROM activity_logs l LEFT JOIN users u ON u.id=l.user_id ORDER BY l.created_at DESC LIMIT 12'));
 function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
 ?>
@@ -161,7 +172,7 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
                         value="<?=sh(csrf_token())?>"><button class="hb-btn hb-no" type="submit">Log out</button></form>
             </div>
         </header>
-        <nav class="hb-nav"><a href="#approvals">Pending approvals</a><a href="#listings">All listings</a><a href="#auctions">Auction monitoring</a><a href="#activity">Activity logs</a></nav>
+        <nav class="hb-nav"><a href="#approvals">Property approvals</a><a href="#auction-approvals">Auction approvals</a><a href="#listings">All listings</a><a href="#auctions">Auction monitoring</a><a href="#activity">Activity logs</a></nav>
         <?php if($message):?><p class="hb-msg"><?=sh($message)?></p><?php endif;?>
         <?php if($error):?><p class="hb-error"><?=sh($error)?></p><?php endif;?>
         <div class="hb-stats">
@@ -231,6 +242,12 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
                         </tr><?php endforeach;?></tbody>
                 </table>
             </div>
+        </section>
+        <section class="hb-card" id="auction-approvals">
+            <h2>Pending auction approvals</h2><p class="hb-sub">Approve the auction schedule separately from the property listing. Bidding requires both approvals.</p>
+            <div class="hb-scroll"><table class="hb-table"><thead><tr><th>PROPERTY / AUCTION</th><th>SELLER</th><th>PROPERTY APPROVAL</th><th>AUCTION REVIEW</th><th>START / END</th><th>DECISION</th></tr></thead><tbody>
+            <?php if(!$pendingAuctions):?><tr><td colspan="6">There are no auctions awaiting review.</td></tr><?php endif;?>
+            <?php foreach($pendingAuctions as $a):?><tr><td><b><?=sh($a['title'])?></b><br><small>Auction #<?=(int)$a['id']?></small></td><td><?=sh($a['username']?:'Unknown')?></td><td><?=!empty($a['is_approved'])?'Approved':'Waiting for property approval'?></td><td><?=sh(ucwords(str_replace('_',' ',$a['review_status'])))?><?php if(!empty($a['review_feedback'])):?><br><small><?=sh($a['review_feedback'])?></small><?php endif;?></td><td><?=sh($a['start_time'])?><br><?=sh($a['end_time'])?></td><td><form method="post" style="display:grid;gap:7px;min-width:190px"><input type="hidden" name="csrf_token" value="<?=sh(csrf_token())?>"><input type="hidden" name="action" value="review_auction"><input type="hidden" name="auction_id" value="<?=(int)$a['id']?>"><select name="auction_decision" required><option value="">Choose action</option><option value="approve">Accept / Approve auction</option><option value="admin_approval">Admin approval</option><option value="needs_revision">Needs revision</option></select><textarea name="auction_feedback" rows="2" placeholder="Required for revision"></textarea><button class="hb-btn hb-yes">Submit decision</button></form></td></tr><?php endforeach;?></tbody></table></div>
         </section>
         <section class="hb-card" id="auctions">
             <h2>Auction monitoring</h2>
