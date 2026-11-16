@@ -21,16 +21,20 @@ if (!is_array($googleRegistration)
 $error = '';
 $username = trim((string)($googleRegistration['suggested_username'] ?? ''));
 $password = '';
+$role = 'Buyer';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $username = trim((string)($_POST['username'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
+    $role = (string)($_POST['role'] ?? 'Buyer');
 
     if ($username === '') {
         $error = 'Please enter a username.';
     } elseif (function_exists('mb_strlen') ? mb_strlen($username) > 50 : strlen($username) > 50) {
         $error = 'Your username must be 50 characters or fewer.';
+    } elseif (!in_array($role, ['Buyer','Client'], true)) {
+        $error = 'Please choose Buyer or Seller as your account type.';
     } elseif (strlen($password) < 8) {
         $error = 'Your password must be at least 8 characters long.';
     } else {
@@ -38,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             require_once __DIR__ . '/config/db.php';
 
             $existing = hb_fetch_one(hb_query($conn,
-                'SELECT id, google_id FROM users WHERE email=? OR google_id=? LIMIT 1',
+                'SELECT id, google_id, username, role FROM users WHERE email=? OR google_id=? LIMIT 1',
                 [(string)$googleRegistration['email'], (string)$googleRegistration['google_id']]
             ));
 
@@ -76,16 +80,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
                     hb_query($conn,
-                        "INSERT INTO users (username, email, google_id, password, role, is_verified) VALUES (?, ?, ?, ?, 'Buyer', 1)",
-                        [$username, (string)$googleRegistration['email'], (string)$googleRegistration['google_id'], $hashedPassword]
+                        'INSERT INTO users (username, email, google_id, password, role, is_verified) VALUES (?, ?, ?, ?, ?, 1)',
+                        [$username, (string)$googleRegistration['email'], (string)$googleRegistration['google_id'], $hashedPassword, $role]
                     );
                     $userId = (int)mysqli_insert_id($conn);
                     unset($_SESSION['google_registration']);
                     session_regenerate_id(true);
                     $_SESSION['user_id'] = $userId;
-                    $_SESSION['role'] = 'Buyer';
+                    $_SESSION['role'] = $role;
                     $_SESSION['username'] = $username;
-                    header('Location: buyer/dashboard.php');
+                    header('Location: ' . ($role === 'Client' ? 'client/dashboard.php' : 'buyer/dashboard.php'));
                     exit;
                 }
             }
@@ -105,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261116-4">
+    <link rel="stylesheet" href="style.css?v=20261117-2">
     <style>
         body { min-height:100vh; background:var(--cream); }
         .google-register-wrap { min-height:100vh; display:grid; place-items:center; padding:35px 18px; }
@@ -127,12 +131,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <section class="google-register-card">
             <p class="eyebrow">WELCOME TO HOMEBID</p>
             <h1>Complete Your Registration</h1>
-            <p class="intro">Your Google account is verified. Choose a username and password to finish creating your HomeBid Buyer account.</p>
+            <p class="intro">Your Google account is verified. Choose your account type, username, and password to finish creating your HomeBid account.</p>
             <?php if ($error !== ''): ?>
                 <p class="google-register-error" role="alert"><?= h($error) ?></p>
             <?php endif; ?>
             <form method="post" action="google-register.php">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <label>
+                    Account type
+                    <select name="role" required>
+                        <option value="Buyer" <?= $role === 'Buyer' ? 'selected' : '' ?>>Buyer</option>
+                        <option value="Client" <?= $role === 'Client' ? 'selected' : '' ?>>Seller</option>
+                    </select>
+                </label>
                 <label>
                     Username
                     <input type="text" name="username" maxlength="50" autocomplete="username" required value="<?= h($username) ?>" placeholder="Choose a username">
