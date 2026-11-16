@@ -65,3 +65,60 @@ form:not(.logout-form){padding:22px 24px 24px}.form-grid{display:grid;grid-templ
 .add-choice-option span{color:#758292;font-size:10px;line-height:1.6}
 .add-choice-option em{margin-top:3px;color:#94713b;font-size:9px;font-style:normal;font-weight:700}
 @media(max-width:420px){.add-choice-list{padding:16px}}
+
+
+/* Refined submission dialogs */
+.modal-layer{padding:24px}
+.modal{border:1px solid #e9e7e1;border-radius:16px}
+.modal-head{padding:25px 28px;align-items:flex-start}
+.modal-head>div p{margin:0 0 7px;color:#a17b3d;font-size:10px;font-weight:700;letter-spacing:1.35px}
+.modal-head h2{font-size:21px;line-height:1.3;color:#1d2b3a}
+.modal-head span{display:block;margin-top:5px;font-size:12px;line-height:1.55}
+.modal-head>button{flex:0 0 36px;width:36px;height:36px;cursor:pointer;transition:background .18s,color .18s}
+.modal-head>button:hover{background:#eee9df;color:#27384a}
+.add-choice-modal{width:min(560px,100%)}
+.add-choice-list{padding:22px 28px 28px;gap:14px}
+.add-choice-option{padding:20px 21px;gap:9px;border-color:#e5e3dd;border-radius:11px}
+.add-choice-option strong{font-size:17px;line-height:1.35}
+.add-choice-option span{font-size:12px;line-height:1.65}
+.add-choice-option em{font-size:11px}
+.add-choice-option:focus-visible{outline:3px solid #d9bd8a;outline-offset:2px}
+#auctionModal .modal{width:min(680px,100%)}
+#auctionModal form,#propertyModal form{padding:26px 28px 28px}
+#auctionModal .form-grid,#propertyModal .form-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+#auctionModal .form-grid label,#propertyModal .form-grid label{gap:8px;color:#34465a;font-size:12px;font-weight:650;line-height:1.4}
+#auctionModal .form-grid input,#auctionModal .form-grid select,
+#propertyModal .form-grid input:not([type="file"]),#propertyModal .form-grid select,
+#propertyModal .form-grid textarea{width:100%;height:44px;padding:0 13px;border:1px solid #dce1e4;border-radius:8px;background:#fff;color:#263648;font-size:13px;line-height:1.4;transition:border-color .18s,box-shadow .18s}
+#propertyModal .form-grid textarea{height:100px;padding:12px 13px}
+#auctionModal .form-grid input:focus,#auctionModal .form-grid select:focus,
+#propertyModal .form-grid input:focus,#propertyModal .form-grid select:focus,
+#propertyModal .form-grid textarea:focus{outline:none;border-color:#b78c43;box-shadow:0 0 0 3px #b78c431c}
+#auctionModal .upload-help,#propertyModal .upload-help{font-size:11px;line-height:1.5}
+#propertyModal .form-grid input[type="file"]{width:100%;font-size:12px}
+#propertyModal .address-status{font-size:11px;line-height:1.5}
+.form-notice{padding:13px 15px;border-radius:8px}
+.form-notice p{font-size:11px;line-height:1.55}
+.modal-actions{margin-top:23px;gap:11px}
+.modal-actions button{min-height:42px;padding:0 18px;border-radius:7px;font-size:12px;font-weight:650;cursor:pointer}
+#auctionModal .modal-actions .primary,#propertyModal .modal-actions .primary{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+@media(max-width:660px){
+ .modal-layer{padding:12px}
+ .modal{height:auto;max-height:calc(100dvh - 24px);border-radius:13px}
+ .modal-head{padding:20px 19px}
+ .modal-head h2{font-size:19px}
+ .modal-head span{font-size:11px}
+ .add-choice-list{padding:18px 19px 21px}
+ #auctionModal form,#propertyModal form{padding:20px 19px 24px}
+ #auctionModal .form-grid,#propertyModal .form-grid{grid-template-columns:1fr;gap:15px}
+ #auctionModal .form-grid .full,#propertyModal .form-grid .full{grid-column:1}
+ .modal-actions{flex-wrap:wrap}
+}
+@media(max-width:420px){
+ .modal-layer{padding:0}
+ .modal{width:100%;height:100dvh;max-height:100dvh;border-radius:0}
+ .modal-head{padding:18px 17px}
+ .add-choice-list{padding:16px 17px}
+ #auctionModal form,#propertyModal form{padding:18px 17px 25px}
+ .modal-actions button{flex:1}
+}
