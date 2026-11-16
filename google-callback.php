@@ -33,7 +33,7 @@ if ($receivedState === '' || $expectedState === '' || !hash_equals($expectedStat
 
 $code = trim((string)($_GET['code'] ?? ''));
 $clientId = getenv('GOOGLE_CLIENT_ID') ?: '44077547718-4nesakkabijeqadjsse1fq82knq0rm1n.apps.googleusercontent.com';
-$clientSecret = getenv('GOOGLE_CLIENT_SECRET') ?: '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';
+$clientSecret = getenv('GOOGLE_CLIENT_SECRET') ?: '';
 $redirectUri = getenv('GOOGLE_REDIRECT_URI') ?: 'http://localhost/susi/google-callback.php';
 
 if ($code === '') {
@@ -63,12 +63,18 @@ curl_setopt_array($curl, [
 ]);
 $tokenBody = curl_exec($curl);
 $tokenStatus = (int)curl_getinfo($curl, CURLINFO_HTTP_CODE);
+$curlError = curl_error($curl);
+$curlErrno = curl_errno($curl);
 curl_close($curl);
 
 $tokenData = is_string($tokenBody) ? json_decode($tokenBody, true) : null;
 $idToken = is_array($tokenData) ? (string)($tokenData['id_token'] ?? '') : '';
 if ($tokenStatus !== 200 || $idToken === '') {
-    error_log('HomeBid Google OAuth token exchange failed. HTTP ' . $tokenStatus);
+    error_log(
+        'HomeBid Google OAuth token exchange failed. HTTP ' .
+        $tokenStatus . ' | cURL errno: ' . $curlErrno .
+        ' | cURL error: ' . ($curlError !== '' ? $curlError : 'No cURL error reported')
+    );
     google_callback_error('Google could not complete the account verification. Please try again.', 401);
 }
 
