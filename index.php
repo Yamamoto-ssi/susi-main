@@ -67,6 +67,7 @@ function homebid_money($amount): string {
             <div class="nav-actions">
                 <button class="btn btn-gold btn-small" data-modal="signup">Sign Up</button>
                 <button class="btn btn-outline btn-small" data-modal="login">Log In</button>
+                <a class="btn btn-outline btn-small" href="staff-login.php">Staff Login</a>
             </div>
         </div>
     </header>
