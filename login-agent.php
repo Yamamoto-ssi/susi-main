@@ -24,9 +24,10 @@ try {
     }
 
     $email = trim((string)($_POST['email'] ?? ''));
+    $loginIdentifier = $email;
     $password = (string)($_POST['password'] ?? '');
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL) || $password === '') {
-        respond(422, ['ok'=>false,'message'=>'Enter a valid email and password.']);
+    if ($password === '' || $loginIdentifier === '' || ($action === 'signup' && !filter_var($email, FILTER_VALIDATE_EMAIL))) {
+        respond(422, ['ok'=>false,'message'=>$action === 'signup' ? 'Enter a valid email and password.' : 'Enter your email address or username and password.']);
     }
 
     if ($action === 'signup') {
@@ -40,7 +41,7 @@ try {
         respond(200,['ok'=>true,'message'=>'Account created.','redirect'=>'buyer/dashboard.php']);
     }
 
-    $q = hb_query($conn, 'SELECT id,username,password,role FROM users WHERE email=? LIMIT 1', [$email]);
+    $q = hb_query($conn, 'SELECT id,username,password,role FROM users WHERE email=? OR username=? LIMIT 1', [$loginIdentifier,$loginIdentifier]);
     $account = hb_fetch_one($q);
     if (!$account) respond(401,['ok'=>false,'message'=>'Email or password is incorrect.']);
     $stored = (string)$account['password'];
