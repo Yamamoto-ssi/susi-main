@@ -35,7 +35,7 @@ $titles=['dashboard'=>'Overview','sellers'=>'Seller accounts','properties'=>'Pro
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title><?=ah($titles[$page])?> | HomeBid Admin</title>
-    <link rel="stylesheet" href="styles.css?v=1">
+    <link rel="stylesheet" href="styles.css?v=minimal-20261117">
 </head>
 
 <body>
