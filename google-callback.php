@@ -32,8 +32,8 @@ if ($receivedState === '' || $expectedState === '' || !hash_equals($expectedStat
 }
 
 $code = trim((string)($_GET['code'] ?? ''));
-$clientId = getenv('GOOGLE_CLIENT_ID') ?: '';
-$clientSecret = getenv('GOOGLE_CLIENT_SECRET') ?: '';
+$clientId = getenv('GOOGLE_CLIENT_ID') ?: '44077547718-4nesakkabijeqadjsse1fq82knq0rm1n.apps.googleusercontent.com';
+$clientSecret = getenv('GOOGLE_CLIENT_SECRET') ?: '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';
 $redirectUri = getenv('GOOGLE_REDIRECT_URI') ?: 'http://localhost/susi/google-callback.php';
 
 if ($code === '') {

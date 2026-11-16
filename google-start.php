@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config/auth.php';
-
-$clientId = getenv('GOOGLE_CLIENT_ID') ?: '';
+    
+$clientId = getenv('GOOGLE_CLIENT_ID') ?: '44077547718-4nesakkabijeqadjsse1fq82knq0rm1n.apps.googleusercontent.com';
 $redirectUri = getenv('GOOGLE_REDIRECT_URI') ?: 'http://localhost/susi/google-callback.php';
 
 if ($clientId === '') {
