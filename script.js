@@ -10,6 +10,8 @@ const modalDescription=document.getElementById("modalDescription");
 const form=document.getElementById("accountForm");
 const formMessage=document.getElementById("formMessage");
 const nameField=document.getElementById("nameField");
+const usernameField=document.getElementById("usernameField");
+const roleField=document.getElementById("roleField");
 const loginIdentifierLabel=document.getElementById("loginIdentifierLabel");
 const nameInput=form?.elements.namedItem("name");
 const passwordInput=form?.elements.namedItem("password");
@@ -29,10 +31,15 @@ function openModal(type){
  modalTitle.textContent=login?"Welcome back":"Create your account";
  modalDescription.textContent=login?"Log in to continue to your HomeBid account.":"Join HomeBid and discover your next home.";
  if(nameField){nameField.hidden=login;nameInput.required=!login;}
+ const usernameInput=form.elements.namedItem("username");
+ if(usernameField){usernameField.hidden=login;usernameInput.required=!login;}
+ if(roleField)roleField.hidden=login;
+ if(googleSignInButton)googleSignInButton.href=login?"google-start.php?intent=login":"google-start.php?intent=signup";
  if(googleSignInSection){googleSignInSection.hidden=!login;}
  if(passwordInput){passwordInput.autocomplete=login?"current-password":"new-password";passwordInput.minLength=login?0:8;}
  const submit=form.querySelector(".form-submit");
  if(submit)submit.textContent=login?"Log In":"Create Account";
+ if(googleSignInButton){const label=googleSignInButton.querySelector("span:last-child");if(label)label.textContent=login?"Continue with Google":"Sign up with Google";}
  if(authSwitch)authSwitch.innerHTML=login?'New to HomeBid? <button type="button" data-modal="signup">Create an account</button>':'Already have an account? <button type="button" data-modal="login">Log in</button>';
  formMessage.textContent="";
  form.reset();
@@ -63,6 +70,8 @@ form?.addEventListener("submit",async event=>{
  const email=form.elements.namedItem("email").value.trim();
  const password=passwordInput.value;
  if(mode==="signup"&&!nameInput.value.trim()){formMessage.textContent="Please enter your full name.";nameInput.focus();return;}
+ if(mode==="signup"&&!form.elements.namedItem("username").value.trim()){formMessage.textContent="Please choose a username.";form.elements.namedItem("username").focus();return;}
+ if(mode==="signup"&&!/^[A-Za-z0-9._-]{3,50}$/.test(form.elements.namedItem("username").value.trim())){formMessage.textContent="Username must be 3–50 characters and use only letters, numbers, dots, underscores, or hyphens.";form.elements.namedItem("username").focus();return;}
  if(!email||(mode==="signup"&&!form.elements.namedItem("email").checkValidity())){formMessage.textContent=mode==="login"?"Please enter your email address or username.":"Please enter a valid email address.";form.elements.namedItem("email").focus();return;}
  if(!password||(mode==="signup"&&password.length<8)){formMessage.textContent=mode==="signup"?"Your password must be at least 8 characters.":"Please enter your password.";passwordInput.focus();return;}
  const submit=form.querySelector(".form-submit");
@@ -70,6 +79,7 @@ form?.addEventListener("submit",async event=>{
  formMessage.textContent="Please wait…";
  const data=new FormData(form);
  data.set("action",mode);
+ if(mode==="signup")data.set("role",form.elements.namedItem("role").value);
  try{
   const response=await fetch("login-agent.php",{method:"POST",body:data,headers:{"Accept":"application/json"}});
   const result=await response.json();
