@@ -189,7 +189,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                             <div class="price-line">
                                 <div><small><?=!empty($p['auction_id'])?'Current bid':'Asking price'?></small><b><?=buyer_money(!empty($p['auction_id'])?($p['current_bid']?:$p['starting_bid']):$p['price'])?></b></div>
                                 <?php if(!empty($p['auction_id'])):?><div><small>Starting bid</small><span><?=buyer_money($p['starting_bid'])?></span></div><?php endif;?>
-                            </div><a class="card-link" href="../index.php#properties">View listing
+                            </div><a class="card-link" href="../property-view.php?id=<?= (int)$p['property_id'] ?>">View listing
                                 <?=buyer_icon('arrow',14)?></a>
                         </div>
                     </article><?php endforeach;?></div>
