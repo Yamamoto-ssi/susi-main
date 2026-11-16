@@ -48,6 +48,7 @@ try {
         hb_query($conn, 'INSERT INTO users (username,email,password,role,is_verified) VALUES (?,?,?,?,1)',
             [$username,$email,password_hash($password,PASSWORD_DEFAULT),$role]);
         $userId = (int)mysqli_insert_id($conn);
+        hb_query($conn, 'INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)', [$userId,'Created a buyer account','user',$userId,$_SERVER['REMOTE_ADDR']??null]);
         session_regenerate_id(true);
         $_SESSION['user_id']=$userId;
         $_SESSION['role']=$role;
@@ -84,6 +85,7 @@ try {
     $_SESSION['user_id']=(int)$account['id'];
     $_SESSION['role']=$role;
     $_SESSION['username']=$account['username'];
+    hb_query($conn, 'INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)', [(int)$account['id'],'Logged in','user',(int)$account['id'],$_SERVER['REMOTE_ADDR']??null]);
     respond(200,['ok'=>true,'message'=>'Login successful.','redirect'=>$redirect]);
 } catch (Throwable $e) {
     error_log('HomeBid login-agent error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
