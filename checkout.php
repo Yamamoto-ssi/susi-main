@@ -6,7 +6,7 @@ function showCheckoutError(string $message, int $statusCode = 400): void
 {
     http_response_code($statusCode);
     $safeMessage = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
-    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Checkout - Mendoza Real Estate</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-light"><main class="container py-5"><div class="card border-0 shadow-sm mx-auto" style="max-width: 640px"><div class="card-body p-4"><h1 class="h4">Checkout could not be completed</h1><p class="mb-4">' . $safeMessage . '</p><a class="btn btn-dark" href="home.php">Return to home</a></div></div></main></body></html>';
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Checkout - Mendoza Real Estate</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-light"><main class="container py-5"><div class="card border-0 shadow-sm mx-auto" style="max-width: 640px"><div class="card-body p-4"><h1 class="h4">Checkout could not be completed</h1><p class="mb-4">' . $safeMessage . '</p><a class="btn btn-dark" href="index.php">Return to home</a></div></div></main></body></html>';
     exit;
 }
 
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos(strtolower($_SERVER['CONTENT
 
     try {
         $conn->begin_transaction();
-        $paymentLookup = $conn->prepare('SELECT id, reservation_id, property_id, amount, status FROM checkout_payments WHERE external_id = ? LIMIT 1 FOR UPDATE');
+        $paymentLookup = $conn->prepare('SELECT id, reservation_id, auction_id, property_id, amount, status FROM checkout_payments WHERE external_id = ? LIMIT 1 FOR UPDATE');
         $paymentLookup->bind_param('s', $externalId);
         $paymentLookup->execute();
         $payment = $paymentLookup->get_result()->fetch_assoc();
@@ -238,7 +238,7 @@ try {
         $reservationStatement->close();
 
         $description = 'Reservation fee for ' . $property['title'];
-        $successUrl = getApplicationBaseUrl() . '/property_details.php?id=' . $propertyId . '&payment=success';
+        $successUrl = getApplicationBaseUrl() . '/property-view.php?id=' . $propertyId . '&payment=success';
         $failureUrl = getApplicationBaseUrl() . '/property_details.php?id=' . $propertyId . '&payment=failed';
     } else {
         $expireStatement = $conn->prepare("UPDATE auctions SET status = 'ended' WHERE id = ? AND status = 'active' AND end_time <= NOW()");
@@ -299,8 +299,8 @@ try {
             showCheckoutError('The winning bid amount is invalid.');
         }
         $description = 'Winning bid payment for ' . $auction['title'];
-        $successUrl = getApplicationBaseUrl() . '/bid_room.php?id=' . $auctionId . '&payment=success';
-        $failureUrl = getApplicationBaseUrl() . '/bid_room.php?id=' . $auctionId . '&payment=failed';
+        $successUrl = getApplicationBaseUrl() . '/buyer/dashboard.php?payment=success&auction_id=' . $auctionId;
+        $failureUrl = getApplicationBaseUrl() . '/buyer/dashboard.php?payment=failed&auction_id=' . $auctionId;
     }
 
     $externalId = strtoupper($paymentType) . '_' . bin2hex(random_bytes(12));
