@@ -254,7 +254,7 @@ function homebid_money($amount): string {
             <form id="accountForm" novalidate>
                 <label id="nameField" hidden>Full name<input type="text" name="name" placeholder="Your full name"
                         autocomplete="name"></label>
-                <label>Email address<input type="email" name="email" placeholder="you@example.com" autocomplete="email"
+                <label id="loginIdentifierLabel">Email address<input type="text" name="email" placeholder="you@example.com" autocomplete="username"
                         required></label>
                 <label>Password<input type="password" name="password" placeholder="Enter your password"
                         autocomplete="current-password" required></label>
