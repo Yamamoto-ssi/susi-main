@@ -357,6 +357,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
             <?php endif;?>
             <footer>© <?=date('Y')?> HomeBid. A smarter way to find your next home.</footer>
         </main>
+    <script>
     const browseRegion = document.getElementById('browseRegion');
     const browseProvince = document.getElementById('browseProvince');
     if (browseRegion && browseProvince) browseRegion.addEventListener('change', () => {
@@ -364,6 +365,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
         const citySelect = document.querySelector('select[name="city"]');
         if (citySelect) citySelect.value = '';
     });
+    </script>
     </div>
 </body>
 
