@@ -60,7 +60,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $page='auctions';
     } else {
         $submissionType=($_POST['submission_type']??'listing')==='auction'?'auction':'listing';
-        $auctionStartingBid=(float)($_POST['auction_starting_bid']??0); $auctionStartInput=trim($_POST['auction_start_time']??''); $auctionEndInput=trim($_POST['auction_end_time']??'');
+        $auctionStartingBid=(float)($_POST['price']??0); $auctionStartInput=trim($_POST['auction_start_time']??''); $auctionEndInput=trim($_POST['auction_end_time']??'');
         $t=trim($_POST['title']??''); $d=trim($_POST['description']??'');
         $category=trim($_POST['category']??'');
         $rawTags=trim($_POST['tags']??'');
@@ -540,9 +540,8 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                     </label>
                     <p class="full address-status" id="addressStatus" role="status">Loading Philippine regions...</p><label>Lot area (sq m)<input name="lot_area"
                             required type="number" min=".01" step=".01"></label><label>Floor area (sq m)<input
-                            name="floor_area" required type="number" min=".01" step=".01"></label><label>Starting bid
-                        price<input name="price" required type="number" min=".01" step=".01"></label><label
-                        class="full">Property description<textarea name="description" required></textarea></label><div class="full" id="newAuctionFields" hidden><div class="form-grid"><label>Starting bid (₱)<input type="number" name="auction_starting_bid" id="auctionStartingBid" min="0.01" step="0.01"></label><label>Start date and time<input type="datetime-local" name="auction_start_time" id="auctionStartTime"></label><label>End date and time<input type="datetime-local" name="auction_end_time" id="auctionEndTime"></label></div></div>
+                            name="floor_area" required type="number" min=".01" step=".01"></label><label id="propertyPriceLabel">Property price<input name="price" required type="number" min=".01" step=".01" placeholder="Enter property price"></label><label
+                        class="full">Property description<textarea name="description" required></textarea></label><div class="full" id="newAuctionFields" hidden><div class="form-grid"><label>Start date and time<input type="datetime-local" name="auction_start_time" id="auctionStartTime"></label><label>End date and time<input type="datetime-local" name="auction_end_time" id="auctionEndTime"></label></div></div>
                     <label class="full">Main property thumbnail (required)
                         <input type="file" name="thumbnail" id="thumbnailInput" accept="image/jpeg,image/png,image/webp" required>
                         <small class="upload-help">JPG, PNG, or WEBP. Maximum 8 MB.</small>
@@ -589,9 +588,10 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
         const isAuction=mode==='auction';
         document.getElementById('submissionType').value=isAuction?'auction':'listing';
         document.getElementById('propertyModalTitle').textContent=isAuction?'Add a new auction property':'Add a property listing';
-        document.getElementById('propertyModalSubtitle').textContent=isAuction?'Enter property details, photos, starting bid, and schedule. Approval is required before bidding.':'Complete the details below. This listing will be reviewed before publication.';
+        document.getElementById('propertyModalSubtitle').textContent=isAuction?'Enter property details, photos, and auction schedule. The property price will also be used as the starting bid. Approval is required before bidding.':'Complete the details below. This listing will be reviewed before publication.';
         document.getElementById('newAuctionFields').hidden=!isAuction;
-        ['auctionStartingBid','auctionStartTime','auctionEndTime'].forEach(id=>document.getElementById(id).required=isAuction);
+        document.getElementById('propertyPriceLabel').firstChild.textContent=isAuction?'Property price / Starting bid':'Property price';
+        ['auctionStartTime','auctionEndTime'].forEach(id=>document.getElementById(id).required=isAuction);
         document.getElementById('propertyModal').hidden = false;
         document.body.style.overflow = 'hidden'
     }
