@@ -3,42 +3,19 @@ declare(strict_types=1);
 require_once __DIR__.'/../config/auth.php';
 $userId = require_roles(['Buyer']);
 require_once __DIR__.'/../config/db.php';
-
 function bh($v): string { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'); }
 function buyer_money($v): string { return '₱' . number_format((float)$v, 2); }
 function buyer_one(mysqli $conn, string $sql, array $args = []): array { $s = hb_query($conn, $sql, $args); return hb_fetch_one($s) ?: []; }
-
-// Fetch logged-in buyer account details
-$account = buyer_one($conn, 'SELECT id, username, email FROM users WHERE id=?', [$userId]);
-$buyerName = $account['username'] ?? 'Juan Dela Cruz';
-$buyerEmail = $account['email'] ?? 'buyer@homebid.ph';
-$bidderId = str_pad((string)$userId, 3, '0', STR_PAD_LEFT);
-$receiptNo = 'HB-' . date('Y') . '-' . str_pad((string)$userId, 5, '0', STR_PAD_LEFT);
-
-// Temporary winning bid receipt data (ready to be replaced by live DB query later)
-$receipt = [
-    'buyer_name'     => $buyerName,
-    'buyer_address'  => 'Angeles City, Pampanga 2009',
-    'buyer_phone'    => '+63 912 345 6789',
-    'buyer_email'    => $buyerEmail,
-    'constituent_id' => $receiptNo,
-    'bidder_id'      => $bidderId,
-    'purchased_on'   => date('m/d/Y'),
-    'printed_on'     => date('m/d/Y'),
-    'payment_type'   => 'Online Checkout / Bank Transfer',
-    'reference_no'   => 'TXN-8849201',
-    'item' => [
-        'name'         => 'Minimalist Townhouse — Angeles City, Pampanga',
-        'category_1'   => 'House & Lot',
-        'category_2'   => 'Live Auction',
-        'market_value' => 3200000.00,
-        'amount_paid'  => 3500000.00,
-        'processing_fee' => 0.00,
-        'reservation_deducted' => 0.00
-    ]
-];
-
-$totalPaid = $receipt['item']['amount_paid'] + $receipt['item']['processing_fee'] - $receipt['item']['reservation_deducted'];
+$paymentId = filter_var($_GET['payment_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+if (!$paymentId) { http_response_code(404); exit('Receipt not found.'); }
+$receiptData = buyer_one($conn, "SELECT cp.id, cp.amount, cp.external_id, cp.invoice_id, cp.created_at, p.title, p.property_type, p.price, p.location, u.username, u.email, u.phone_number, u.mailing_address FROM checkout_payments cp JOIN properties p ON p.id=cp.property_id JOIN users u ON u.id=cp.user_id WHERE cp.id=? AND cp.user_id=? AND cp.payment_type='auction' AND cp.status='paid' LIMIT 1", [$paymentId, $userId]);
+if (!$receiptData) { http_response_code(404); exit('A paid auction receipt could not be found for this account.'); }
+$buyerName=$receiptData['username']?:'Buyer'; $buyerEmail=$receiptData['email']?:'';
+$buyerAddress=$receiptData['mailing_address']?:$receiptData['location']; $buyerPhone=$receiptData['phone_number']?:'Not provided';
+$bidderId=str_pad((string)$userId,3,'0',STR_PAD_LEFT); $receiptNo='HB-AUC-'.str_pad((string)$paymentId,6,'0',STR_PAD_LEFT);
+$paymentDate=strtotime($receiptData['created_at'])?:time();
+$receipt=['buyer_name'=>$buyerName,'buyer_address'=>$buyerAddress,'buyer_phone'=>$buyerPhone,'buyer_email'=>$buyerEmail,'constituent_id'=>$receiptNo,'bidder_id'=>$bidderId,'purchased_on'=>date('m/d/Y',$paymentDate),'printed_on'=>date('m/d/Y'),'payment_type'=>'Xendit Online Payment','reference_no'=>$receiptData['invoice_id']?:$receiptData['external_id'],'item'=>['name'=>$receiptData['title'],'category_1'=>$receiptData['property_type']?:'Real Estate','category_2'=>'Live Auction','market_value'=>(float)$receiptData['price'],'amount_paid'=>(float)$receiptData['amount'],'processing_fee'=>0.00,'reservation_deducted'=>0.00]];
+$totalPaid=$receipt['item']['amount_paid']+$receipt['item']['processing_fee']-$receipt['item']['reservation_deducted'];
 ?>
 <!doctype html>
 <html lang="en">
