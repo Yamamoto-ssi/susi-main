@@ -20,15 +20,19 @@ if (!is_array($googleRegistration)
 
 $error = '';
 $username = trim((string)($googleRegistration['suggested_username'] ?? ''));
+$password = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $username = trim((string)($_POST['username'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
 
     if ($username === '') {
-        $error = 'Please enter your full name.';
+        $error = 'Please enter a username.';
     } elseif (function_exists('mb_strlen') ? mb_strlen($username) > 50 : strlen($username) > 50) {
-        $error = 'Your name must be 50 characters or fewer.';
+        $error = 'Your username must be 50 characters or fewer.';
+    } elseif (strlen($password) < 8) {
+        $error = 'Your password must be at least 8 characters long.';
     } else {
         try {
             require_once __DIR__ . '/config/db.php';
@@ -68,13 +72,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'SELECT id FROM users WHERE username=? LIMIT 1', [$username]
                 ));
                 if ($usernameExists) {
-                    $error = 'That name is already in use. Please enter a different name.';
+                    $error = 'That username is already taken. Please choose another one.';
                 } else {
-                    // Google authenticates the user, so generate a random password they cannot use as a normal password.
-                    $randomPassword = password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
+                    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
                     hb_query($conn,
                         "INSERT INTO users (username, email, google_id, password, role, is_verified) VALUES (?, ?, ?, ?, 'Buyer', 1)",
-                        [$username, (string)$googleRegistration['email'], (string)$googleRegistration['google_id'], $randomPassword]
+                        [$username, (string)$googleRegistration['email'], (string)$googleRegistration['google_id'], $hashedPassword]
                     );
                     $userId = (int)mysqli_insert_id($conn);
                     unset($_SESSION['google_registration']);
@@ -124,15 +127,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <section class="google-register-card">
             <p class="eyebrow">WELCOME TO HOMEBID</p>
             <h1>Complete Your Registration</h1>
-            <p class="intro">Your Google account is verified. Add your name to finish creating your HomeBid Buyer account.</p>
+            <p class="intro">Your Google account is verified. Choose a username and password to finish creating your HomeBid Buyer account.</p>
             <?php if ($error !== ''): ?>
                 <p class="google-register-error" role="alert"><?= h($error) ?></p>
             <?php endif; ?>
             <form method="post" action="google-register.php">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <label>
-                    Full name
-                    <input type="text" name="username" maxlength="50" autocomplete="name" required value="<?= h($username) ?>" placeholder="Enter your full name">
+                    Username
+                    <input type="text" name="username" maxlength="50" autocomplete="username" required value="<?= h($username) ?>" placeholder="Choose a username">
+                </label>
+                <label>
+                    Password
+                    <input type="password" name="password" minlength="8" autocomplete="new-password" required placeholder="Create a password (at least 8 characters)">
                 </label>
                 <label>
                     Email address
