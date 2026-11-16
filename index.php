@@ -3,6 +3,7 @@
 define('HOMEBID_ALLOW_OFFLINE_DB', true);
 require_once __DIR__ . '/config/db.php';
 
+$googleClientId = getenv('GOOGLE_CLIENT_ID') ?: '';
 $featuredProperties = [];
 $featuredLoadError = false;
 try {
@@ -259,12 +260,21 @@ function homebid_money($amount): string {
                         autocomplete="current-password" required></label>
                 <button class="btn btn-gold form-submit" type="submit">Create Account</button>
             </form>
+            <div class="google-signin-section" id="googleSignInSection" hidden>
+                <div class="auth-divider"><span>OR</span></div>
+                <div id="googleSignInButton"></div>
+                <p class="google-signin-note" id="googleSignInNote"></p>
+            </div>
             <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
             <p class="auth-switch" id="authSwitch">Already have an account? <button type="button" data-modal="login">Log
                     in</button></p>
         </section>
     </div>
     <div class="toast" id="toast" role="status"></div>
+    <script>
+        window.HOMEBID_GOOGLE_CLIENT_ID = <?= json_encode($googleClientId, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    </script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="script.js"></script>
 </body>
 
