@@ -33,9 +33,12 @@ try {
         )
         WHERE p.id=? AND p.is_approved=1 AND p.review_status='approved'
           AND (p.status='Available' OR (p.status='Auction' AND a.review_status='approved'
-               AND a.status IN ('active','upcoming')))
+               AND a.status IN ('active','upcoming'))
+               OR (p.status='Reserved' AND EXISTS (
+                   SELECT 1 FROM reservations r WHERE r.property_id=p.id AND r.user_id=? AND r.status='Approved'
+               )))
         LIMIT 1
-    ", [$propertyId]);
+    ", [$propertyId, (int)($_SESSION['user_id'] ?? 0)]);
     $property = hb_fetch_one($result);
 } catch (Throwable $error) {
     error_log('HomeBid property detail lookup failed.');
@@ -49,6 +52,25 @@ if (!$property) {
 
 $bidMessage = '';
 $bidMessageType = 'error';
+if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
+    $paidReservation = false;
+    if (!empty($_SESSION['user_id'])) {
+        try {
+            $paidReservation = (bool) hb_fetch_one(hb_query($conn,
+                "SELECT id FROM checkout_payments WHERE payment_type='reservation' AND property_id=? AND user_id=? AND status='paid' ORDER BY id DESC LIMIT 1",
+                [$propertyId, (int) $_SESSION['user_id']]));
+        } catch (Throwable $error) {
+            error_log('HomeBid reservation confirmation lookup failed.');
+        }
+    }
+    $bidMessage = $paidReservation
+        ? 'Your reservation payment was received and confirmed. The property is now reserved for your account.'
+        : 'Xendit returned you to HomeBid. We are waiting for payment confirmation. Refresh this page in a moment.';
+    $bidMessageType = $paidReservation ? 'success' : 'error';
+} elseif (isset($_GET['payment']) && $_GET['payment'] === 'failed') {
+    $bidMessage = 'Your payment was not completed. You can try again while the property remains available.';
+    $bidMessageType = 'error';
+}
 if (isset($_GET['bid']) && $_GET['bid'] === 'success') {
     $bidMessage = 'Your bid was submitted successfully.';
     $bidMessageType = 'success';
