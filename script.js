@@ -35,7 +35,7 @@ function openModal(type){
  if(usernameField){usernameField.hidden=login;usernameInput.required=!login;}
  if(roleField)roleField.hidden=login;
  if(googleSignInButton)googleSignInButton.href=login?"google-start.php?intent=login":"google-start.php?intent=signup";
- if(googleSignInSection){googleSignInSection.hidden=!login;}
+ if(googleSignInSection){googleSignInSection.hidden=false;}
  if(passwordInput){passwordInput.autocomplete=login?"current-password":"new-password";passwordInput.minLength=login?0:8;}
  const submit=form.querySelector(".form-submit");
  if(submit)submit.textContent=login?"Log In":"Create Account";
