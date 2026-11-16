@@ -33,7 +33,7 @@ try {
         )
         WHERE p.id=? AND p.is_approved=1 AND p.review_status='approved'
           AND (p.status='Available' OR (p.status='Auction' AND a.review_status='approved'
-               AND a.status IN ('active','upcoming'))
+               AND a.status IN ('active','upcoming','ended'))
                OR (p.status='Reserved' AND EXISTS (
                    SELECT 1 FROM reservations r WHERE r.property_id=p.id AND r.user_id=? AND r.status='Approved'
                )))
