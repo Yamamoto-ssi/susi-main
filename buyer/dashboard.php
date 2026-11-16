@@ -30,6 +30,7 @@ return '<svg width="'.$size.'" height="'.$size.'" viewBox="0 0 24 24" fill="none
 function buyer_badge(string $status):string{$v=strtolower($status);$cls=in_array($v,['active','approved','winning','won'],true)?'green':(in_array($v,['upcoming','pending'],true)?'amber':'gray');return '<span class="status '.$cls.'">'.bh(ucfirst($status)).'</span>';}
 
 $account=buyer_one($conn,'SELECT username,email FROM users WHERE id=?',[$userId]);
+$approvedSeller=buyer_one($conn,"SELECT id FROM seller_applications WHERE user_id=? AND status='approved' ORDER BY reviewed_at DESC LIMIT 1",[$userId]);
 $username=$account['username']??'Buyer';
 $initials=strtoupper(substr(preg_replace('/[^a-z0-9]/i','',$username)?:'HB',0,2));
 $tab=$_GET['tab']??'home';
@@ -133,7 +134,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
             <div class="crumb">Buyer Portal <span>/</span> <b><?=bh($tabTitles[$tab])?></b></div>
             <form class="top-search" method="get"><input type="hidden" name="tab"
                     value="browse"><?=buyer_icon('search',16)?><input name="q" value="<?=bh($search)?>"
-                    placeholder="Search by property or location..."><button>Search</button></form><a class="top-help"
+                    placeholder="Search by property or location..."><button>Search</button></form><?php if($approvedSeller):?><form method="post" action="../config/switch_account_mode.php" style="display:inline-flex;margin:0"><input type="hidden" name="csrf_token" value="<?=bh(csrf_token())?>"><input type="hidden" name="mode" value="Client"><button type="submit" style="border:1px solid #d6a94c;background:#fff8e8;color:#765316;border-radius:8px;padding:9px 12px;font-weight:700;cursor:pointer">Switch to Seller</button></form><?php endif;?><a class="top-help"
                 href="../index.php#contact">Help</a><span class="top-avatar"><?=bh($initials)?></span>
         </header>
         <main class="content">
