@@ -37,6 +37,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $t=trim($_POST['title']??''); $d=trim($_POST['description']??''); $l=trim($_POST['location']??'');
         $lot=(float)($_POST['lot_area']??0); $floor=(float)($_POST['floor_area']??0); $price=(float)($_POST['price']??0);
         $savedFiles=[];
+        $dbTransaction=false;
         try {
             if(!$t||!$d||!$l||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete all property fields with valid positive values.');
             if(!isset($_FILES['thumbnail'])||$_FILES['thumbnail']['error']!==UPLOAD_ERR_OK) throw new RuntimeException('Please upload a main property thumbnail.');
@@ -50,11 +51,16 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             if(count($extraFiles)>3) throw new RuntimeException('You can upload up to 3 additional photos (4 images including the thumbnail).');
             $thumbnailPath=hb_store_property_image($_FILES['thumbnail']); $savedFiles[]=$thumbnailPath;
             foreach($extraFiles as $file) $savedFiles[]=hb_store_property_image($file);
+            mysqli_begin_transaction($conn);
+            $dbTransaction=true;
             hb_query($conn,"INSERT INTO properties(user_id,title,description,location,lot_area,floor_area,price,status,is_approved,image_path) VALUES(?,?,?,?,?,?,?,'Available',0,?)",[$userId,$t,$d,$l,$lot,$floor,$price,$thumbnailPath]);
             $propertyId=mysqli_insert_id($conn);
             for($i=1;$i<count($savedFiles);$i++) hb_query($conn,'INSERT INTO property_images(property_id,image_path) VALUES(?,?)',[$propertyId,$savedFiles[$i]]);
+            mysqli_commit($conn);
+            $dbTransaction=false;
             $notice='Property and photos submitted. Awaiting administrator approval.';
         } catch(Throwable $e) {
+            if ($dbTransaction) mysqli_rollback($conn);
             foreach($savedFiles as $path) { $fullPath=dirname(__DIR__).'/'.$path; if(is_file($fullPath)) @unlink($fullPath); }
             $error=$e instanceof RuntimeException?$e->getMessage():'The property could not be saved. Please check the database tables and try again.';
             error_log('HomeBid property submission error: '.$e->getMessage());
