@@ -265,7 +265,7 @@ $receipt=['buyer_name'=>$buyerName,'buyer_address'=>$buyerAddress,'buyer_phone'=
         </table>
 
         <div class="temp-note">
-            <span>Official Property Transaction Receipt — Temporary Preview Record</span>
+            <span>Official Property Transaction Receipt — Payment verified by HomeBid</span>
             <span>Verified Buyer: <?= bh($receipt['buyer_name']) ?></span>
         </div>
     </div>
