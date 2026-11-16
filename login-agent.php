@@ -59,7 +59,7 @@ try {
         respond(403,['ok'=>false,'message'=>'Administrator and Staff accounts must use the Staff / Admin Login page.']);
     }
     if ($role==='Administrator') $redirect='admin/dashboard.php';
-    elseif ($role==='Staff') $redirect='staff/dashboard.php';
+    elseif ($role==='Staff') $redirect='staff/module.php';
     elseif ($role==='Buyer') $redirect='buyer/dashboard.php';
     elseif ($role==='Client') $redirect='client/dashboard.php';
     else respond(403,['ok'=>false,'message'=>'Your account role is not configured for dashboard access. Contact an administrator.']);

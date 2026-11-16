@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 16, 2026 at 02:52 AM
+-- Generation Time: Nov 16, 2026 at 05:06 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -63,7 +63,10 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `action`, `entity_type`, `record_i
 (19, 13, 'Changed property featured status', 'property', 4, '::1', '2026-11-15 06:13:08'),
 (20, 13, 'Changed property featured status', 'property', 5, '::1', '2026-11-15 06:13:09'),
 (21, 13, 'Changed property featured status', 'property', 6, '::1', '2026-11-15 06:13:10'),
-(22, 13, 'Changed property featured status', 'property', 1, '::1', '2026-11-15 06:13:11');
+(22, 13, 'Changed property featured status', 'property', 1, '::1', '2026-11-15 06:13:11'),
+(23, 14, 'Changed auction status to active', 'auction', 3, '::1', '2026-11-16 07:44:57'),
+(24, 14, 'Updated auction status to ended', 'auction', 2, '::1', '2026-11-16 07:46:20'),
+(25, 14, 'Updated auction status to ended', 'auction', 2, '::1', '2026-11-16 07:47:02');
 
 -- --------------------------------------------------------
 
@@ -80,6 +83,10 @@ CREATE TABLE `auctions` (
   `start_time` datetime NOT NULL,
   `end_time` datetime NOT NULL,
   `status` enum('upcoming','active','ended','cancelled') DEFAULT 'upcoming',
+  `review_status` enum('pending','admin_approval','needs_revision','approved') NOT NULL DEFAULT 'approved',
+  `review_feedback` text DEFAULT NULL,
+  `reviewed_by` int(11) DEFAULT NULL,
+  `reviewed_at` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -87,10 +94,10 @@ CREATE TABLE `auctions` (
 -- Dumping data for table `auctions`
 --
 
-INSERT INTO `auctions` (`id`, `property_id`, `starting_bid`, `current_bid`, `highest_bidder_id`, `start_time`, `end_time`, `status`, `created_at`) VALUES
-(2, 2, 4000000.00, 111111111.00, 6, '2026-11-03 01:35:44', '2026-11-05 01:35:44', 'active', '2026-11-02 17:35:44'),
-(3, 3, 1800000.00, 1800000.00, NULL, '2026-11-06 01:35:44', '2026-11-13 01:35:44', 'upcoming', '2026-11-02 17:35:44'),
-(4, 1, 3000000.00, 3500000.00, NULL, '2026-10-27 01:35:44', '2026-11-02 01:35:44', 'ended', '2026-11-02 17:35:44');
+INSERT INTO `auctions` (`id`, `property_id`, `starting_bid`, `current_bid`, `highest_bidder_id`, `start_time`, `end_time`, `status`, `review_status`, `review_feedback`, `reviewed_by`, `reviewed_at`, `created_at`) VALUES
+(2, 2, 4000000.00, 111111111.00, 6, '2026-11-03 01:35:44', '2026-11-05 01:35:44', 'ended', 'approved', NULL, NULL, NULL, '2026-11-02 17:35:44'),
+(3, 3, 1800000.00, 1800000.00, NULL, '2026-11-06 01:35:44', '2026-11-13 01:35:44', 'active', 'approved', NULL, NULL, NULL, '2026-11-02 17:35:44'),
+(4, 1, 3000000.00, 3500000.00, NULL, '2026-10-27 01:35:44', '2026-11-02 01:35:44', 'ended', 'approved', NULL, NULL, NULL, '2026-11-02 17:35:44');
 
 -- --------------------------------------------------------
 
@@ -234,7 +241,13 @@ CREATE TABLE `properties` (
   `user_id` int(11) NOT NULL,
   `title` varchar(150) NOT NULL,
   `description` text NOT NULL,
+  `category` varchar(80) DEFAULT NULL,
   `location` varchar(255) NOT NULL,
+  `region` varchar(100) DEFAULT NULL,
+  `province` varchar(150) DEFAULT NULL,
+  `city` varchar(150) DEFAULT NULL,
+  `barangay` varchar(150) DEFAULT NULL,
+  `lot_number` varchar(100) DEFAULT NULL,
   `lot_area` decimal(10,2) NOT NULL,
   `floor_area` decimal(10,2) NOT NULL,
   `price` decimal(12,2) NOT NULL,
@@ -243,6 +256,11 @@ CREATE TABLE `properties` (
   `is_featured` tinyint(1) NOT NULL DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `is_approved` tinyint(1) NOT NULL DEFAULT 0,
+  `review_status` enum('pending','admin_approval','needs_revision','approved') NOT NULL DEFAULT 'pending',
+  `review_feedback` text DEFAULT NULL,
+  `reviewed_by` int(11) DEFAULT NULL,
+  `reviewed_at` datetime DEFAULT NULL,
+  `submission_type` enum('listing','auction') NOT NULL DEFAULT 'listing',
   `latitude` decimal(10,8) DEFAULT NULL,
   `longitude` decimal(11,8) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -251,13 +269,55 @@ CREATE TABLE `properties` (
 -- Dumping data for table `properties`
 --
 
-INSERT INTO `properties` (`id`, `user_id`, `title`, `description`, `location`, `lot_area`, `floor_area`, `price`, `status`, `image_path`, `is_featured`, `created_at`, `is_approved`, `latitude`, `longitude`) VALUES
-(1, 13, 'Modern House and Lot', 'Test description for checkout', 'Manila, Philippines', 120.00, 85.00, 2500000.00, 'Available', 'assets/image/hero-house.jpg', 1, '2026-10-31 07:41:52', 1, NULL, NULL),
-(2, 13, 'Modern House and Lot', 'Test description for checkout', 'Manila, Philippines', 120.00, 85.00, 2500000.00, 'Available', 'assets/image/property-alabang.jpg', 1, '2026-11-02 14:06:50', 1, NULL, NULL),
-(3, 13, 'Minimalist Townhouse', 'Spacious townhouse with modern finishes, open-concept kitchen, and secure garage.', 'Angeles City, Pampanga', 100.00, 90.00, 3200000.00, 'Available', 'assets/image/property-nuvali.jpg', 1, '2026-11-02 14:06:50', 1, NULL, NULL),
-(4, 13, 'Luxury Subdivision Estate', 'High-end luxury property featuring a wide second-floor balcony, landscaped garden, and master suite.', 'Clark Freeport Zone', 200.00, 150.00, 7500000.00, 'Available', 'assets/image/why-house.jpg', 1, '2026-11-02 14:06:50', 1, NULL, NULL),
-(5, 13, 'Affordable Family Duplex', 'Cozy and budget-friendly duplex designed for growing families close to schools and commercial centers.', 'San Fernando, Pampanga', 80.00, 65.00, 2100000.00, 'Available', 'assets/image/property-cebu.jpg', 1, '2026-11-02 14:06:50', 1, NULL, NULL),
-(6, 13, 'Contemporary Single-Detached', 'Stunning single-detached house with high ceilings, large windows, and a two-car carport.', 'Tarlac City', 150.00, 110.00, 4800000.00, 'Available', 'assets/image/property-cebu.jpg', 1, '2026-11-02 14:06:50', 1, NULL, NULL);
+INSERT INTO `properties` (`id`, `user_id`, `title`, `description`, `category`, `location`, `region`, `province`, `city`, `barangay`, `lot_number`, `lot_area`, `floor_area`, `price`, `status`, `image_path`, `is_featured`, `created_at`, `is_approved`, `review_status`, `review_feedback`, `reviewed_by`, `reviewed_at`, `submission_type`, `latitude`, `longitude`) VALUES
+(1, 13, 'Modern House and Lot', 'Test description for checkout', NULL, 'Manila, Philippines', NULL, NULL, NULL, NULL, NULL, 120.00, 85.00, 2500000.00, 'Available', 'assets/image/hero-house.jpg', 1, '2026-10-31 07:41:52', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
+(2, 13, 'Modern House and Lot', 'Test description for checkout', NULL, 'Manila, Philippines', NULL, NULL, NULL, NULL, NULL, 120.00, 85.00, 2500000.00, 'Available', 'assets/image/property-alabang.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
+(3, 13, 'Minimalist Townhouse', 'Spacious townhouse with modern finishes, open-concept kitchen, and secure garage.', NULL, 'Angeles City, Pampanga', NULL, NULL, NULL, NULL, NULL, 100.00, 90.00, 3200000.00, 'Available', 'assets/image/property-nuvali.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
+(4, 13, 'Luxury Subdivision Estate', 'High-end luxury property featuring a wide second-floor balcony, landscaped garden, and master suite.', NULL, 'Clark Freeport Zone', NULL, NULL, NULL, NULL, NULL, 200.00, 150.00, 7500000.00, 'Available', 'assets/image/why-house.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
+(5, 13, 'Affordable Family Duplex', 'Cozy and budget-friendly duplex designed for growing families close to schools and commercial centers.', NULL, 'San Fernando, Pampanga', NULL, NULL, NULL, NULL, NULL, 80.00, 65.00, 2100000.00, 'Available', 'assets/image/property-cebu.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
+(6, 13, 'Contemporary Single-Detached', 'Stunning single-detached house with high ceilings, large windows, and a two-car carport.', NULL, 'Tarlac City', NULL, NULL, NULL, NULL, NULL, 150.00, 110.00, 4800000.00, 'Available', 'assets/image/property-cebu.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
+(7, 13, 'walang chismiss', 'safe kahit san magpunta people like to keep private', NULL, 'safe1234privacycamp', NULL, NULL, NULL, NULL, NULL, 456.99, 89765.00, 9999999999.99, 'Available', NULL, 0, '2026-11-16 07:57:01', 0, 'pending', NULL, NULL, NULL, 'listing', NULL, NULL),
+(8, 13, 'asdfasdf', 'ccst school', 'House and Lot', '123123, Samsonville, Mabalacat City, Pampanga, Region III (Central Luzon)', 'Region III (Central Luzon)', 'Pampanga', 'Mabalacat City', 'Samsonville', '123123', 123.20, 100.00, 5000000000.00, 'Available', 'assets/images/property_ca35796c8b60f03d3152698f.jpg', 0, '2026-11-16 13:51:23', 0, 'pending', NULL, NULL, NULL, 'listing', NULL, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `property_images`
+--
+
+CREATE TABLE `property_images` (
+  `id` int(11) NOT NULL,
+  `property_id` int(11) NOT NULL,
+  `image_path` varchar(255) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `property_images`
+--
+
+INSERT INTO `property_images` (`id`, `property_id`, `image_path`, `created_at`) VALUES
+(1, 8, 'assets/images/property_b9439043ad2e273d77d083d7.jpg', '2026-11-16 13:51:23');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `property_tags`
+--
+
+CREATE TABLE `property_tags` (
+  `id` int(11) NOT NULL,
+  `property_id` int(11) NOT NULL,
+  `tag_name` varchar(40) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `property_tags`
+--
+
+INSERT INTO `property_tags` (`id`, `property_id`, `tag_name`, `created_at`) VALUES
+(1, 8, 'furnished', '2026-11-16 13:51:23');
 
 -- --------------------------------------------------------
 
@@ -322,9 +382,10 @@ INSERT INTO `users` (`id`, `username`, `email`, `google_id`, `password`, `role`,
 (6, 'nreco', 'asdfadsf@gmail.com', NULL, '$2y$10$2OkkKhk/MO1W9us1f.pugeMTCb.EfB2IazpRvz5MVlmnftSn5Dnnu', 'Administrator', NULL, 0, '2026-11-02 16:55:43'),
 (7, 'qwe', 'qwe@gmail.com', NULL, 'qwe', 'Buyer', NULL, 0, '2026-11-02 17:21:57'),
 (9, 'brix sedillo', 'brixsedillo@gmail.com', '118305699041903171057', '$2y$10$cSvFlcA69Puej37BeITDUelPEnwEsfLbbTHh0dJ7gPRcFodAjRmdO', 'Buyer', NULL, 1, '2026-11-03 21:45:13'),
-(13, 'brixbuyer', 'brixbuyer@gmail.com', NULL, '$2y$10$N2nBVgDfTyB2RpFi5rKP3.BcZQazrVQLW3X/6uZRrP9epo3KfcxB6', 'Buyer', NULL, 1, '2026-11-03 22:43:47'),
+(13, 'brixbuyer', 'brixbuyer@gmail.com', NULL, '$2y$10$N2nBVgDfTyB2RpFi5rKP3.BcZQazrVQLW3X/6uZRrP9epo3KfcxB6', 'Client', NULL, 1, '2026-11-03 22:43:47'),
 (14, 'brixadmin', 'brixadmin@gmail.com', NULL, '$2y$10$gLyJYcX4UftxmosjdqJW3OnOWMrgQejD25huzSOk0VwOSyS60hnqi', 'Administrator', '', 1, '2026-11-03 22:43:47'),
-(15, 'Brixangelo Sedillo', 'sbrixangelo@gmail.com', '105516443382730612843', '', 'Buyer', NULL, 1, '2026-11-08 20:28:40');
+(15, 'Brixangelo Sedillo', 'sbrixangelo@gmail.com', '105516443382730612843', '', 'Buyer', NULL, 1, '2026-11-08 20:28:40'),
+(16, 'janjan', 'lorenxz09@gmail.com', '103742249210865975607', '$2y$10$Iu6s7rcZp6HQjMt7aG5KXeXzUKF5FH/OsPDykKfj2zxZniSQ.Hb3O', 'Buyer', NULL, 1, '2026-11-16 11:11:43');
 
 -- --------------------------------------------------------
 
@@ -358,7 +419,9 @@ ALTER TABLE `activity_logs`
 ALTER TABLE `auctions`
   ADD PRIMARY KEY (`id`),
   ADD KEY `property_id` (`property_id`),
-  ADD KEY `highest_bidder_id` (`highest_bidder_id`);
+  ADD KEY `highest_bidder_id` (`highest_bidder_id`),
+  ADD KEY `idx_auctions_review_status` (`review_status`),
+  ADD KEY `fk_auctions_reviewed_by` (`reviewed_by`);
 
 --
 -- Indexes for table `auction_results`
@@ -420,7 +483,24 @@ ALTER TABLE `password_resets`
 -- Indexes for table `properties`
 --
 ALTER TABLE `properties`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_properties_review_status` (`review_status`),
+  ADD KEY `fk_properties_reviewed_by` (`reviewed_by`);
+
+--
+-- Indexes for table `property_images`
+--
+ALTER TABLE `property_images`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_property_images_property` (`property_id`);
+
+--
+-- Indexes for table `property_tags`
+--
+ALTER TABLE `property_tags`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_property_tag` (`property_id`,`tag_name`),
+  ADD KEY `idx_property_tags_name` (`tag_name`);
 
 --
 -- Indexes for table `reservations`
@@ -454,7 +534,7 @@ ALTER TABLE `viewing_bookings`
 -- AUTO_INCREMENT for table `activity_logs`
 --
 ALTER TABLE `activity_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT for table `auctions`
@@ -508,7 +588,19 @@ ALTER TABLE `password_resets`
 -- AUTO_INCREMENT for table `properties`
 --
 ALTER TABLE `properties`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT for table `property_images`
+--
+ALTER TABLE `property_images`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `property_tags`
+--
+ALTER TABLE `property_tags`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `reservations`
@@ -520,7 +612,7 @@ ALTER TABLE `reservations`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `viewing_bookings`
@@ -543,7 +635,8 @@ ALTER TABLE `activity_logs`
 --
 ALTER TABLE `auctions`
   ADD CONSTRAINT `auctions_ibfk_1` FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `auctions_ibfk_2` FOREIGN KEY (`highest_bidder_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `auctions_ibfk_2` FOREIGN KEY (`highest_bidder_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_auctions_reviewed_by` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `bids`
@@ -571,6 +664,24 @@ ALTER TABLE `inquiries`
 --
 ALTER TABLE `notifications`
   ADD CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `properties`
+--
+ALTER TABLE `properties`
+  ADD CONSTRAINT `fk_properties_reviewed_by` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `property_images`
+--
+ALTER TABLE `property_images`
+  ADD CONSTRAINT `fk_property_images_property` FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `property_tags`
+--
+ALTER TABLE `property_tags`
+  ADD CONSTRAINT `fk_property_tags_property` FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `reservations`
