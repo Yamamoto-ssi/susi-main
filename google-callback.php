@@ -139,10 +139,15 @@ try {
     } else {
         // New Google users must complete their HomeBid profile before an account is created.
         $displayName = trim((string)($claims['name'] ?? ''));
-        $suggestedUsername = $displayName !== '' ? $displayName : (string)strstr($email, '@', true);
-        $suggestedUsername = trim(function_exists('mb_substr')
+        $nameForUsername = $displayName !== '' ? $displayName : (string)strstr($email, '@', true);
+        $suggestedUsername = strtolower((string)preg_replace('/[^A-Za-z0-9._-]+/', '', $nameForUsername));
+        if (strlen($suggestedUsername) < 3) {
+            $suggestedUsername = strtolower((string)strstr($email, '@', true));
+            $suggestedUsername = (string)preg_replace('/[^A-Za-z0-9._-]+/', '', $suggestedUsername);
+        }
+        $suggestedUsername = function_exists('mb_substr')
             ? mb_substr($suggestedUsername, 0, 50)
-            : substr($suggestedUsername, 0, 50));
+            : substr($suggestedUsername, 0, 50);
 
         $_SESSION['google_registration'] = [
             'google_id' => $googleId,
