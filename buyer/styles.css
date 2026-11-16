@@ -13,3 +13,15 @@
 @media(max-width:1100px){.hero-art{right:0;opacity:.8}.property-grid,.browse-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.sidebar{transform:translateX(-100%);transition:transform .22s}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.menu-toggle{display:block}.topbar{padding:0 15px;gap:10px}.crumb{display:none}.top-search{width:auto;flex:1}.top-help{display:none}.content{padding:18px 15px 28px}.hero{min-height:275px;padding:25px}.hero-art{right:-120px;opacity:.28}.hero-copy{max-width:100%}.hero h1{font-size:34px}.section-heading{align-items:start}.stats{gap:8px}.stat{padding:11px}.property-grid,.browse-grid{grid-template-columns:1fr}.property-photo{height:190px}.bottom-grid{grid-template-columns:1fr}.filter-bar{flex-wrap:wrap}.filter-bar label{flex-basis:100%}.filter-bar .btn{flex:1}.filter-bar>a{padding:8px}.top-avatar{display:none}}
 @media(min-width:761px) and (max-width:980px){.sidebar{width:210px}.main{margin-left:210px}.content{padding:22px 18px}.hero-art{right:-80px;opacity:.55}.property-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Buyer dashboard activity timeline and responsive refinements */
+.timeline{display:flex;flex-direction:column}
+.timeline-item{display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:14px;padding:16px 4px;border-bottom:1px solid var(--line)}
+.timeline-item:last-child{border-bottom:0}
+.timeline-dot{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:var(--gold-light);color:var(--gold)}
+.timeline-copy{min-width:0}
+.timeline-copy b{display:block;color:var(--ink);font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.timeline-copy small{display:block;margin-top:4px;color:var(--muted);font-size:11px}
+.timeline-item time{color:var(--muted);font-size:11px;white-space:nowrap}
+@media(max-width:650px){.timeline-item{grid-template-columns:34px minmax(0,1fr);gap:10px}.timeline-item time{grid-column:2;margin-top:-5px}.timeline-dot{width:32px;height:32px}}
