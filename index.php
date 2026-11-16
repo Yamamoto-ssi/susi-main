@@ -1,4 +1,22 @@
 <?php
+require_once __DIR__ . '/config/auth.php';
+
+// Keep authenticated users inside their account dashboard instead of showing the public landing page.
+if (!empty($_SESSION['user_id'])) {
+    $role = $_SESSION['role'] ?? '';
+    $dashboardByRole = [
+        'Buyer' => 'buyer/dashboard.php',
+        'Client' => 'client/dashboard.php',
+        'Staff' => 'staff/dashboard.php',
+        'Administrator' => 'admin/dashboard.php',
+    ];
+
+    if (isset($dashboardByRole[$role])) {
+        header('Location: ' . $dashboardByRole[$role]);
+        exit;
+    }
+}
+
 // The public landing page should remain available even when the local database is offline.
 define('HOMEBID_ALLOW_OFFLINE_DB', true);
 require_once __DIR__ . '/config/db.php';
