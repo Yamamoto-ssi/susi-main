@@ -185,7 +185,7 @@ $receipt=['buyer_name'=>$buyerName,'buyer_address'=>$buyerAddress,'buyer_phone'=
 
     <div class="no-print-bar">
         <span><strong>Printable Property Receipt:</strong> Press <b>Ctrl + P</b> (or <b>Cmd + P</b>) to print or save as PDF.</span>
-        <a href="dashboard.php">&larr; Back to Dashboard</a>
+        <a href="../buyer/dashboard.php?tab=activity">&larr; Back to Dashboard</a>
     </div>
 
     <div class="receipt-page">
