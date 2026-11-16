@@ -1,0 +1,33 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/../config/auth.php';
+$reviewerId=require_roles(['Staff','Administrator']);
+require_once __DIR__.'/../config/db.php';
+$isAdmin=(($_SESSION['role']??'')==='Administrator');
+function sr_h($v):string{return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
+$error='';$notice='';
+if(isset($_GET['document'])){
+ $id=filter_var($_GET['id']??0,FILTER_VALIDATE_INT);$which=(string)$_GET['document'];
+ if(!$id||!in_array($which,['id_front_path','selfie_with_id_path'],true)){http_response_code(404);exit('Document not found.');}
+ $app=hb_fetch_one(hb_query($conn,'SELECT id_front_path,selfie_with_id_path FROM seller_applications WHERE id=? LIMIT 1',[$id]));
+ if(!$app){http_response_code(404);exit('Document not found.');}
+ $path=realpath(__DIR__.'/../'.$app[$which]);$base=realpath(__DIR__.'/../uploads/private/seller-verification');
+ if(!$path||!$base||!str_starts_with($path,$base.DIRECTORY_SEPARATOR)||!is_file($path)){http_response_code(404);exit('Document not found.');}
+ $mime=(new finfo(FILEINFO_MIME_TYPE))->file($path);if(!in_array($mime,['image/jpeg','image/png','image/webp'],true)){http_response_code(415);exit('Unsupported document.');}
+ header('Content-Type: '.$mime);header('Content-Disposition: inline; filename="seller-verification"');header('X-Content-Type-Options: nosniff');readfile($path);exit;
+}
+if($_SERVER['REQUEST_METHOD']==='POST'){verify_csrf();$id=filter_var($_POST['id']??0,FILTER_VALIDATE_INT);$decision=(string)($_POST['decision']??'');$note=trim((string)($_POST['reviewer_note']??''));try{
+ if(!$id||!in_array($decision,['approved','rejected','needs_revision'],true))throw new RuntimeException('Invalid review decision.');
+ if($decision!=='approved'&&$note==='')throw new RuntimeException('Enter a reason or instructions for the applicant.');
+ $app=hb_fetch_one(hb_query($conn,"SELECT * FROM seller_applications WHERE id=? AND status='pending' LIMIT 1",[$id]));if(!$app)throw new RuntimeException('This application has already been reviewed.');
+ hb_query($conn,'UPDATE seller_applications SET status=?,reviewer_id=?,reviewer_note=?,reviewed_at=NOW() WHERE id=?',[$decision,$reviewerId,$note?:null,$id]);
+ if($decision==='approved'){hb_query($conn,"UPDATE users SET role='Client',is_verified=1 WHERE id=? AND role='Buyer'",[(int)$app['user_id']]);}
+ hb_query($conn,'INSERT INTO activity_logs(user_id,action,entity_type,record_id,ip_address) VALUES(?,?,?,?,?)',[$reviewerId,'Seller application '.$decision,'seller_application',$id,$_SERVER['REMOTE_ADDR']??null]);
+ hb_query($conn,'INSERT INTO notifications(user_id,title,message,related_entity,related_id) VALUES(?,?,?,?,?)',[(int)$app['user_id'],'Seller application '.ucwords(str_replace('_',' ',$decision)),$decision==='approved'?'Your seller application was approved. Sign in again to access Seller features.':'Your seller application needs attention: '.$note,'seller_application',$id]);
+ $notice='Application review saved.';
+ }catch(Throwable $e){$error=$e instanceof RuntimeException?$e->getMessage():'Could not save the review. Check the seller application database migration.';if(!$e instanceof RuntimeException)error_log('Seller review: '.$e->getMessage());}}
+$apps=hb_fetch_all(hb_query($conn,'SELECT a.*,u.username,u.email FROM seller_applications a JOIN users u ON u.id=a.user_id ORDER BY CASE WHEN a.status="pending" THEN 0 ELSE 1 END,a.created_at DESC LIMIT 150'));
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Seller applications | HomeBid</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6f8;color:#182638;font:14px Arial,sans-serif}.wrap{max-width:1200px;margin:35px auto;padding:0 18px}h1{color:#102b45}.card{background:white;border:1px solid #e1e7ef;border-radius:13px;padding:20px;margin:16px 0}.app{display:grid;grid-template-columns:1fr auto;gap:18px;border-bottom:1px solid #e8edf2;padding:18px 0}.app:last-child{border:0}.muted{color:#66778a;line-height:1.6}.docs{display:flex;gap:10px;margin:12px 0}.docs a{display:inline-block;padding:9px 12px;background:#eaf0f6;border-radius:7px;color:#12324d;text-decoration:none;font-weight:700}textarea{width:100%;min-height:65px;padding:10px;border:1px solid #cbd5e1;border-radius:7px}button{padding:10px 13px;border:0;border-radius:7px;background:#102b45;color:white;font-weight:700;cursor:pointer}.approve{background:#14734b}.reject{background:#9b352d}.status{font-weight:700;text-transform:capitalize;color:#9b6500}.flash{padding:12px;border-radius:8px;background:#e8f7ee;color:#17643b}.err{background:#fff0ee;color:#a33327}@media(max-width:700px){.app{grid-template-columns:1fr}}
+</style></head><body><main class="wrap"><a href="<?=$isAdmin?'../admin/dashboard.php':'module.php'?>" style="color:#17415f">← Dashboard</a><h1>Seller applications</h1><p class="muted">Review identity documents privately. Approving changes the account from Buyer to Client (Seller).</p><?php if($notice):?><p class="flash"><?=sr_h($notice)?></p><?php endif;?><?php if($error):?><p class="flash err"><?=sr_h($error)?></p><?php endif;?>
+<?php foreach($apps as $a):?><section class="card"><div class="app"><div><h2><?=sr_h($a['full_name'])?> <small class="status"><?=sr_h(str_replace('_',' ',$a['status']))?></small></h2><p class="muted">HomeBid user: <?=sr_h($a['username'])?> · <?=sr_h($a['email'])?><br>Phone: <?=sr_h($a['phone_number'])?> · Address: <?=sr_h($a['address'])?><br><?=sr_h($a['id_type'])?> · ID number: <?=sr_h($a['id_number'])?><br>Submitted: <?=sr_h($a['created_at'])?></p><div class="docs"><a target="_blank" rel="noopener" href="?document=id_front_path&id=<?=$a['id']?>">View ID photo</a><a target="_blank" rel="noopener" href="?document=selfie_with_id_path&id=<?=$a['id']?>">View selfie holding ID</a></div><?php if($a['reviewer_note']):?><p><b>Previous note:</b> <?=sr_h($a['reviewer_note'])?></p><?php endif;?></div><div><?php if($a['status']==='pending'):?><form method="post"><input type="hidden" name="csrf_token" value="<?=sr_h(csrf_token())?>"><input type="hidden" name="id" value="<?=$a['id']?>"><textarea name="reviewer_note" placeholder="Required for rejection or revision"></textarea><p><button class="approve" name="decision" value="approved">Approve seller</button> <button name="decision" value="needs_revision">Needs revision</button> <button class="reject" name="decision" value="rejected">Reject</button></p></form><?php else:?><p class="muted">Reviewed <?=sr_h($a['reviewed_at']??'')?> · <?=sr_h($a['reviewer_note']??'No note')?></p><?php endif;?></div></div></section><?php endforeach;?><?php if(!$apps):?><section class="card muted">No seller applications yet.</section><?php endif;?></main></body></html>
