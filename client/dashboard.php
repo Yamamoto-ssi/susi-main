@@ -64,9 +64,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $auctionStartingBid=(float)($_POST['price']??0); $auctionStartInput=trim($_POST['auction_start_time']??''); $auctionEndInput=trim($_POST['auction_end_time']??'');
         $t=trim($_POST['title']??''); $d=trim($_POST['description']??'');
         $category=trim($_POST['category']??'');
-        $rawTags=trim($_POST['tags']??'');
-        $tags=array_values(array_unique(array_filter(array_map(function($tag){return mb_substr(trim($tag),0,40);},explode(',',$rawTags)),fn($tag)=>$tag!=='')));
-        if(count($tags)>10) $tags=array_slice($tags,0,10);
+        $allowedTags=['Furnished','Unfurnished','Gated Community','Near School','Near Hospital','Near Mall','Near Public Transport','With Swimming Pool','With Garden','With Garage','Corner Lot','Newly Renovated','Flood-Free','Pet-Friendly','Ready for Occupancy'];
+        $submittedTags=$_POST['tags']??[];
+        if(!is_array($submittedTags)) $submittedTags=[];
+        $tags=array_values(array_unique(array_filter($submittedTags,fn($tag)=>is_string($tag)&&in_array($tag,$allowedTags,true))));
         $regionName=trim($_POST['region_name']??'');
         $provinceName=trim($_POST['province_name']??'');
         $cityName=trim($_POST['city_name']??'');
@@ -78,7 +79,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $dbTransaction=false;
         try {
             $allowedCategories=['House and Lot','Condominium','Townhouse','Residential Lot','Commercial Property','Apartment','Industrial Property','Other'];
-            if(!$t||!$d||!in_array($category,$allowedCategories,true)||!$rawTags||!count($tags)||!$regionName||!$cityName||!$barangayName||!$lotNumber||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete every required property field, including at least one tag, and choose a valid property category.');
+            if(!$t||!$d||!in_array($category,$allowedCategories,true)||!count($tags)||count($tags)>10||!$regionName||!$cityName||!$barangayName||!$lotNumber||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete every required property field, select 1 to 10 tags, and choose a valid property category.');
             $auctionStartDate=null; $auctionEndDate=null;
             if($submissionType==='auction'){$auctionStartDate=DateTime::createFromFormat('Y-m-d\\TH:i',$auctionStartInput);$auctionEndDate=DateTime::createFromFormat('Y-m-d\\TH:i',$auctionEndInput);if($auctionStartingBid<=0||!$auctionStartDate||!$auctionEndDate||$auctionEndDate<=$auctionStartDate||$auctionStartDate<new DateTime())throw new RuntimeException('Enter a valid starting bid and future auction schedule.');}
             if(!isset($_FILES['thumbnail'])||$_FILES['thumbnail']['error']!==UPLOAD_ERR_OK) throw new RuntimeException('Please upload a main property thumbnail.');
@@ -517,10 +518,16 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                             <option>Industrial Property</option><option>Other</option>
                         </select>
                     </label>
-                    <label class="full">Tags
-                        <input name="tags" maxlength="500" required placeholder="e.g. furnished, near-school, gated-community">
-                        <small class="upload-help">Separate tags with commas. Add up to 10 tags to help buyers find your property.</small>
-                    </label>
+                    <div class="full tag-picker">
+                        <strong class="tag-picker-title">Property tags</strong>
+                        <small class="upload-help">Select 1 to 10 tags that describe your property.</small>
+                        <div class="tag-options">
+                            <?php foreach (['Furnished','Unfurnished','Gated Community','Near School','Near Hospital','Near Mall','Near Public Transport','With Swimming Pool','With Garden','With Garage','Corner Lot','Newly Renovated','Flood-Free','Pet-Friendly','Ready for Occupancy'] as $tagOption): ?>
+                                <label class="tag-option"><input type="checkbox" name="tags[]" value="<?=e($tagOption)?>"><span><?=e($tagOption)?></span></label>
+                            <?php endforeach; ?>
+                        </div>
+                        <small class="upload-help" id="tagSelectionCount">0 / 10 selected</small>
+                    </div>
                     <label class="full">Region
                         <select id="propertyRegion" name="region_code" required><option value="">Loading regions...</option></select>
                         <input type="hidden" name="region_name" id="regionName">
@@ -719,6 +726,16 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
             if (citySelect.value) addressStatus.textContent = 'Location selected. Enter the lot or house number.';
         });
     }
+
+    const tagCheckboxes = Array.from(document.querySelectorAll('input[name="tags[]"]'));
+    const tagSelectionCount = document.getElementById('tagSelectionCount');
+    function updateTagSelection() {
+        const selected = tagCheckboxes.filter(box => box.checked);
+        if (tagSelectionCount) tagSelectionCount.textContent = selected.length + ' / 10 selected';
+        tagCheckboxes.forEach(box => { box.disabled = !box.checked && selected.length >= 10; });
+    }
+    tagCheckboxes.forEach(box => box.addEventListener('change', updateTagSelection));
+    updateTagSelection();
 
     function previewImageFiles(input, preview, maxFiles) {
         if (!input || !preview) return;
