@@ -153,13 +153,7 @@ CREATE TRIGGER `homebid_after_bid_insert` AFTER INSERT ON `bids` FOR EACH ROW BE
       AND b.bid_amount < NEW.bid_amount
       AND b.status IN ('Pending', 'Accepted');
 
-    -- Mark those earlier bids as outbid.
-    UPDATE bids
-    SET status = 'Outbid'
-    WHERE property_id = NEW.property_id
-      AND user_id <> NEW.user_id
-      AND bid_amount < NEW.bid_amount
-      AND status IN ('Pending', 'Accepted');
+    -- Bid statuses are updated by property-view.php outside this trigger.
 
     -- Alert the property owner about every newly recorded bid.
     INSERT INTO notifications (user_id, title, message, related_entity, related_id)
