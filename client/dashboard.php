@@ -50,7 +50,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $dbTransaction=false;
         try {
             $allowedCategories=['House and Lot','Condominium','Townhouse','Residential Lot','Commercial Property','Apartment','Industrial Property','Other'];
-            if(!$t||!$d||!in_array($category,$allowedCategories,true)||!$regionName||!$cityName||!$barangayName||!$lotNumber||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete all property fields and choose a valid property category.');
+            if(!$t||!$d||!in_array($category,$allowedCategories,true)||!$rawTags||!count($tags)||!$regionName||!$cityName||!$barangayName||!$lotNumber||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete every required property field, including at least one tag, and choose a valid property category.');
             if(!isset($_FILES['thumbnail'])||$_FILES['thumbnail']['error']!==UPLOAD_ERR_OK) throw new RuntimeException('Please upload a main property thumbnail.');
             $extraFiles=[];
             if(isset($_FILES['photos'])&&is_array($_FILES['photos']['name'])) {
@@ -59,6 +59,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     $extraFiles[]=['name'=>$name,'type'=>$_FILES['photos']['type'][$i],'tmp_name'=>$_FILES['photos']['tmp_name'][$i],'error'=>$_FILES['photos']['error'][$i],'size'=>$_FILES['photos']['size'][$i]];
                 }
             }
+            if(count($extraFiles)<1) throw new RuntimeException('Please upload at least one additional property photo.');
             if(count($extraFiles)>3) throw new RuntimeException('You can upload up to 3 additional photos (4 images including the thumbnail).');
             $thumbnailPath=hb_store_property_image($_FILES['thumbnail']); $savedFiles[]=$thumbnailPath;
             foreach($extraFiles as $file) $savedFiles[]=hb_store_property_image($file);
@@ -457,7 +458,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                         </select>
                     </label>
                     <label class="full">Tags
-                        <input name="tags" maxlength="500" placeholder="e.g. furnished, near-school, gated-community">
+                        <input name="tags" maxlength="500" required placeholder="e.g. furnished, near-school, gated-community">
                         <small class="upload-help">Separate tags with commas. Add up to 10 tags to help buyers find your property.</small>
                     </label>
                     <label class="full">Region
@@ -488,9 +489,9 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                         <small class="upload-help">JPG, PNG, or WEBP. Maximum 8 MB.</small>
                         <div id="thumbnailPreview" class="image-preview-grid"></div>
                     </label>
-                    <label class="full">Other property photos (up to 3)
-                        <input type="file" name="photos[]" id="photosInput" accept="image/jpeg,image/png,image/webp" multiple>
-                        <small class="upload-help">Select up to 3 additional photos. Maximum 8 MB each.</small>
+                    <label class="full">Other property photos (required, up to 3)
+                        <input type="file" name="photos[]" id="photosInput" accept="image/jpeg,image/png,image/webp" multiple required>
+                        <small class="upload-help">Upload at least 1 and up to 3 additional photos. Maximum 8 MB each.</small>
                         <div id="photosPreview" class="image-preview-grid"></div>
                     </label></div>
                 <div class="form-notice"><?=ico('shield')?><p>Submitted properties remain unpublished until an
