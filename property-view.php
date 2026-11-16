@@ -117,6 +117,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place
                 throw new RuntimeException('Your bid must be at least ₱' . number_format($minimumBid, 2) . '.');
             }
             if ((int)$auction['seller_id'] === $buyerId) throw new RuntimeException('You cannot bid on your own property.');
+            // Mark older lower bids as outbid here, outside the INSERT trigger.
+            // MariaDB does not allow a trigger to update the table that fired it.
+            hb_query($conn, "UPDATE bids SET status='Outbid' WHERE property_id=? AND bid_amount<? AND status IN ('Pending','Accepted')",
+                [$propertyId, number_format((float)$bidAmount, 2, '.', '')]);
             hb_query($conn, "INSERT INTO bids (property_id,user_id,bid_amount,status) VALUES (?,?,?,'Pending')",
                 [$propertyId, $buyerId, number_format((float)$bidAmount, 2, '.', '')]);
             hb_query($conn, "UPDATE auctions SET current_bid=?,highest_bidder_id=? WHERE id=?",
