@@ -239,7 +239,7 @@ try {
 
         $description = 'Reservation fee for ' . $property['title'];
         $successUrl = getApplicationBaseUrl() . '/property-view.php?id=' . $propertyId . '&payment=success';
-        $failureUrl = getApplicationBaseUrl() . '/property_details.php?id=' . $propertyId . '&payment=failed';
+        $failureUrl = getApplicationBaseUrl() . '/property-view.php?id=' . $propertyId . '&payment=failed';
     } else {
         $expireStatement = $conn->prepare("UPDATE auctions SET status = 'ended' WHERE id = ? AND status = 'active' AND end_time <= NOW()");
         $expireStatement->bind_param('i', $auctionId);
