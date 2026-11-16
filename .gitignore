@@ -1,2 +1,5 @@
 /config/google.local.php
 /config/mail.local.php
+
+/uploads/private/*
+!/uploads/private/.htaccess
