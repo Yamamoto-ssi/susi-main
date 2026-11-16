@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 16, 2026 at 05:06 PM
+-- Generation Time: Nov 16, 2026 at 09:49 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -66,7 +66,9 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `action`, `entity_type`, `record_i
 (22, 13, 'Changed property featured status', 'property', 1, '::1', '2026-11-15 06:13:11'),
 (23, 14, 'Changed auction status to active', 'auction', 3, '::1', '2026-11-16 07:44:57'),
 (24, 14, 'Updated auction status to ended', 'auction', 2, '::1', '2026-11-16 07:46:20'),
-(25, 14, 'Updated auction status to ended', 'auction', 2, '::1', '2026-11-16 07:47:02');
+(25, 14, 'Updated auction status to ended', 'auction', 2, '::1', '2026-11-16 07:47:02'),
+(26, 16, 'Submitted seller application', 'seller_application', 1, '::1', '2026-11-16 18:26:40'),
+(27, 13, 'Seller application approved', 'seller_application', 1, '::1', '2026-11-16 18:48:22');
 
 -- --------------------------------------------------------
 
@@ -97,7 +99,9 @@ CREATE TABLE `auctions` (
 INSERT INTO `auctions` (`id`, `property_id`, `starting_bid`, `current_bid`, `highest_bidder_id`, `start_time`, `end_time`, `status`, `review_status`, `review_feedback`, `reviewed_by`, `reviewed_at`, `created_at`) VALUES
 (2, 2, 4000000.00, 111111111.00, 6, '2026-11-03 01:35:44', '2026-11-05 01:35:44', 'ended', 'approved', NULL, NULL, NULL, '2026-11-02 17:35:44'),
 (3, 3, 1800000.00, 1800000.00, NULL, '2026-11-06 01:35:44', '2026-11-13 01:35:44', 'active', 'approved', NULL, NULL, NULL, '2026-11-02 17:35:44'),
-(4, 1, 3000000.00, 3500000.00, NULL, '2026-10-27 01:35:44', '2026-11-02 01:35:44', 'ended', 'approved', NULL, NULL, NULL, '2026-11-02 17:35:44');
+(4, 1, 3000000.00, 3500000.00, NULL, '2026-10-27 01:35:44', '2026-11-02 01:35:44', 'ended', 'approved', NULL, NULL, NULL, '2026-11-02 17:35:44'),
+(5, 11, 4500000.00, 4500000.00, NULL, '2026-11-17 00:00:00', '2026-11-24 23:59:59', 'active', 'approved', NULL, NULL, NULL, '2026-11-16 19:07:46'),
+(6, 12, 3800000.00, 3800000.00, NULL, '2026-11-17 00:00:00', '2026-11-25 23:59:59', 'active', 'approved', NULL, NULL, NULL, '2026-11-16 19:07:46');
 
 -- --------------------------------------------------------
 
@@ -129,6 +133,47 @@ CREATE TABLE `bids` (
   `status` enum('Pending','Accepted','Rejected','Outbid') NOT NULL DEFAULT 'Pending',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Triggers `bids`
+--
+DELIMITER $$
+CREATE TRIGGER `homebid_after_bid_insert` AFTER INSERT ON `bids` FOR EACH ROW BEGIN
+    -- Alert buyers whose earlier bids are now lower than the newly placed bid.
+    INSERT INTO notifications (user_id, title, message, related_entity, related_id)
+    SELECT DISTINCT b.user_id,
+           'You have been outbid',
+           CONCAT('A higher bid of ₱', FORMAT(NEW.bid_amount, 2), ' was placed on ', p.title, '. Your bid is no longer the highest.'),
+           'property',
+           NEW.property_id
+    FROM bids b
+    INNER JOIN properties p ON p.id = NEW.property_id
+    WHERE b.property_id = NEW.property_id
+      AND b.user_id <> NEW.user_id
+      AND b.bid_amount < NEW.bid_amount
+      AND b.status IN ('Pending', 'Accepted');
+
+    -- Mark those earlier bids as outbid.
+    UPDATE bids
+    SET status = 'Outbid'
+    WHERE property_id = NEW.property_id
+      AND user_id <> NEW.user_id
+      AND bid_amount < NEW.bid_amount
+      AND status IN ('Pending', 'Accepted');
+
+    -- Alert the property owner about every newly recorded bid.
+    INSERT INTO notifications (user_id, title, message, related_entity, related_id)
+    SELECT p.user_id,
+           'New bid on your property',
+           CONCAT('A buyer placed a bid of ₱', FORMAT(NEW.bid_amount, 2), ' on ', p.title, '.'),
+           'property',
+           NEW.property_id
+    FROM properties p
+    WHERE p.id = NEW.property_id
+      AND p.user_id <> NEW.user_id;
+END
+$$
+DELIMITER ;
 
 -- --------------------------------------------------------
 
@@ -175,6 +220,27 @@ CREATE TABLE `checkout_payments` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Triggers `checkout_payments`
+--
+DELIMITER $$
+CREATE TRIGGER `homebid_after_payment_paid` AFTER UPDATE ON `checkout_payments` FOR EACH ROW BEGIN
+    -- A purchase notification is sent only when payment first becomes paid.
+    IF NEW.status = 'paid' AND OLD.status <> 'paid' THEN
+        INSERT INTO notifications (user_id, title, message, related_entity, related_id)
+        SELECT p.user_id,
+               'Property purchased',
+               CONCAT('A buyer completed payment for ', p.title, '.'),
+               'property',
+               NEW.property_id
+        FROM properties p
+        WHERE p.id = NEW.property_id
+          AND p.user_id <> NEW.user_id;
+    END IF;
+END
+$$
+DELIMITER ;
+
 -- --------------------------------------------------------
 
 --
@@ -207,6 +273,35 @@ CREATE TABLE `notifications` (
   `related_id` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `notifications`
+--
+
+INSERT INTO `notifications` (`id`, `user_id`, `title`, `message`, `is_read`, `related_entity`, `related_id`, `created_at`) VALUES
+(1, 16, 'Seller application Approved', 'Your seller application was approved. Sign in again to access Seller features.', 0, 'seller_application', 1, '2026-11-16 18:48:22');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `password_change_requests`
+--
+
+CREATE TABLE `password_change_requests` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `token_hash` char(64) NOT NULL,
+  `new_password_hash` varchar(255) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `password_change_requests`
+--
+
+INSERT INTO `password_change_requests` (`id`, `user_id`, `token_hash`, `new_password_hash`, `expires_at`, `created_at`) VALUES
+(2, 16, 'e3a1cfdfb8e980f14d8fc3b9148d6d3c97a6e500af7c03563e2600bad732cc31', '$2y$10$yqPI6HYAUKO0M0RUE5Hje.3kPOgwKVFbckqjhDmmpQuXO78Y0H8e.', '2026-11-17 03:45:04', '2026-11-16 19:30:04');
 
 -- --------------------------------------------------------
 
@@ -277,7 +372,11 @@ INSERT INTO `properties` (`id`, `user_id`, `title`, `description`, `category`, `
 (5, 13, 'Affordable Family Duplex', 'Cozy and budget-friendly duplex designed for growing families close to schools and commercial centers.', NULL, 'San Fernando, Pampanga', NULL, NULL, NULL, NULL, NULL, 80.00, 65.00, 2100000.00, 'Available', 'assets/image/property-cebu.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
 (6, 13, 'Contemporary Single-Detached', 'Stunning single-detached house with high ceilings, large windows, and a two-car carport.', NULL, 'Tarlac City', NULL, NULL, NULL, NULL, NULL, 150.00, 110.00, 4800000.00, 'Available', 'assets/image/property-cebu.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
 (7, 13, 'walang chismiss', 'safe kahit san magpunta people like to keep private', NULL, 'safe1234privacycamp', NULL, NULL, NULL, NULL, NULL, 456.99, 89765.00, 9999999999.99, 'Available', NULL, 0, '2026-11-16 07:57:01', 0, 'pending', NULL, NULL, NULL, 'listing', NULL, NULL),
-(8, 13, 'asdfasdf', 'ccst school', 'House and Lot', '123123, Samsonville, Mabalacat City, Pampanga, Region III (Central Luzon)', 'Region III (Central Luzon)', 'Pampanga', 'Mabalacat City', 'Samsonville', '123123', 123.20, 100.00, 5000000000.00, 'Available', 'assets/images/property_ca35796c8b60f03d3152698f.jpg', 0, '2026-11-16 13:51:23', 0, 'pending', NULL, NULL, NULL, 'listing', NULL, NULL);
+(8, 13, 'asdfasdf', 'ccst school', 'House and Lot', '123123, Samsonville, Mabalacat City, Pampanga, Region III (Central Luzon)', 'Region III (Central Luzon)', 'Pampanga', 'Mabalacat City', 'Samsonville', '123123', 123.20, 100.00, 5000000000.00, 'Available', 'assets/images/property_ca35796c8b60f03d3152698f.jpg', 0, '2026-11-16 13:51:23', 0, 'pending', NULL, NULL, NULL, 'listing', NULL, NULL),
+(9, 16, 'Modern Family House in Angeles City', 'A modern family home with spacious bedrooms, a functional kitchen, private parking, and convenient access to schools and commercial establishments.', 'House and Lot', 'Pulungbulu, Angeles City, Pampanga', 'Region III (Central Luzon)', 'Pampanga', 'Angeles City', 'Pulungbulu', 'Block 8 Lot 12', 120.00, 95.00, 3850000.00, 'Available', 'assets/image/hero-house.jpg', 0, '2026-11-16 19:07:46', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
+(10, 16, 'Affordable Townhouse in San Fernando', 'A comfortable townhouse suitable for a growing family, featuring a practical layout and convenient access to public transportation and nearby establishments.', 'House and Lot', 'San Fernando City, Pampanga', 'Region III (Central Luzon)', 'Pampanga', 'San Fernando', 'Dolores', 'Block 3 Lot 5', 90.00, 75.00, 2850000.00, 'Available', 'assets/image/property-alabang.jpg', 0, '2026-11-16 19:07:46', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
+(11, 16, 'Premium House and Lot Auction', 'A spacious residential property offered through auction, featuring a modern design and a peaceful neighborhood.', 'House and Lot', 'Clark Freeport Zone, Pampanga', 'Region III (Central Luzon)', 'Pampanga', 'Angeles City', 'Clark', 'Block 5 Lot 10', 180.00, 140.00, 4500000.00, 'Auction', 'assets/image/why-house.jpg', 0, '2026-11-16 19:07:46', 1, 'approved', NULL, NULL, NULL, 'auction', NULL, NULL),
+(12, 16, 'Contemporary Family Home Auction', 'A contemporary family home with generous living spaces, modern finishes, and convenient access to major roads.', 'House and Lot', 'Mabalacat City, Pampanga', 'Region III (Central Luzon)', 'Pampanga', 'Mabalacat City', 'Dau', 'Block 2 Lot 8', 150.00, 115.00, 3800000.00, 'Auction', 'assets/image/property-nuvali.jpg', 0, '2026-11-16 19:07:46', 1, 'approved', NULL, NULL, NULL, 'auction', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -354,6 +453,36 @@ INSERT INTO `reservations` (`id`, `property_id`, `user_id`, `reservation_fee`, `
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `seller_applications`
+--
+
+CREATE TABLE `seller_applications` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `full_name` varchar(160) NOT NULL,
+  `phone_number` varchar(30) NOT NULL,
+  `address` varchar(255) NOT NULL,
+  `id_type` varchar(100) NOT NULL,
+  `id_number` varchar(100) NOT NULL,
+  `id_front_path` varchar(255) NOT NULL,
+  `selfie_with_id_path` varchar(255) NOT NULL,
+  `status` enum('pending','approved','rejected','needs_revision') NOT NULL DEFAULT 'pending',
+  `reviewer_id` int(11) DEFAULT NULL,
+  `reviewer_note` text DEFAULT NULL,
+  `reviewed_at` datetime DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `seller_applications`
+--
+
+INSERT INTO `seller_applications` (`id`, `user_id`, `full_name`, `phone_number`, `address`, `id_type`, `id_number`, `id_front_path`, `selfie_with_id_path`, `status`, `reviewer_id`, `reviewer_note`, `reviewed_at`, `created_at`) VALUES
+(1, 16, 'John Lorence Inong', '09486318794', '82, 8th st Lakandula', 'Philippine National ID', '1231231231231233', 'uploads/private/seller-verification/0fc5c33149f88b62646137fc3b7c59acb879.png', 'uploads/private/seller-verification/2521105779763fbe9d2690abd2d3ea4ebdf1.png', 'approved', 13, NULL, '2026-11-17 02:48:22', '2026-11-16 18:26:40');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `users`
 --
 
@@ -366,26 +495,33 @@ CREATE TABLE `users` (
   `role` enum('Administrator','Staff','Buyer','Client') NOT NULL DEFAULT 'Buyer',
   `verification_token` varchar(64) DEFAULT NULL,
   `is_verified` tinyint(1) NOT NULL DEFAULT 0,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `first_name` varchar(80) DEFAULT NULL,
+  `last_name` varchar(80) DEFAULT NULL,
+  `phone_number` varchar(30) DEFAULT NULL,
+  `mailing_address` varchar(255) DEFAULT NULL,
+  `email_notifications` tinyint(1) NOT NULL DEFAULT 1,
+  `auction_notifications` tinyint(1) NOT NULL DEFAULT 1,
+  `marketing_notifications` tinyint(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `email`, `google_id`, `password`, `role`, `verification_token`, `is_verified`, `created_at`) VALUES
-(1, 'admin', 'admin@houseandlot.com', NULL, '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrator', NULL, 1, '2026-10-28 16:12:53'),
-(2, 'angelotorres', 'sbrixtorres@gmail.com', '117620565271595565048', '$2y$10$8F23Ert8nry1.BXgvYv7pugpU23KZw/HMKvCYGb.gf9fxQ/RajZve', 'Buyer', NULL, 1, '2026-11-01 19:00:42'),
-(3, 'admin1', 'jasdfljksafdjl@gmail.com', NULL, 'admin123', 'Administrator', NULL, 0, '2026-11-02 14:50:42'),
-(4, 'asdf', 'asdf', NULL, 'asdf', 'Administrator', NULL, 0, '2026-11-02 15:07:28'),
-(5, 'shootermen99', 'brix@gmail.com', NULL, '$2y$10$8aNQJBVmDwbk3PnCjBXx0OuGW4AU76MqHOG6YnZ.D.4KNhD03C1Lu', 'Administrator', NULL, 0, '2026-11-02 15:09:24'),
-(6, 'nreco', 'asdfadsf@gmail.com', NULL, '$2y$10$2OkkKhk/MO1W9us1f.pugeMTCb.EfB2IazpRvz5MVlmnftSn5Dnnu', 'Administrator', NULL, 0, '2026-11-02 16:55:43'),
-(7, 'qwe', 'qwe@gmail.com', NULL, 'qwe', 'Buyer', NULL, 0, '2026-11-02 17:21:57'),
-(9, 'brix sedillo', 'brixsedillo@gmail.com', '118305699041903171057', '$2y$10$cSvFlcA69Puej37BeITDUelPEnwEsfLbbTHh0dJ7gPRcFodAjRmdO', 'Buyer', NULL, 1, '2026-11-03 21:45:13'),
-(13, 'brixbuyer', 'brixbuyer@gmail.com', NULL, '$2y$10$N2nBVgDfTyB2RpFi5rKP3.BcZQazrVQLW3X/6uZRrP9epo3KfcxB6', 'Client', NULL, 1, '2026-11-03 22:43:47'),
-(14, 'brixadmin', 'brixadmin@gmail.com', NULL, '$2y$10$gLyJYcX4UftxmosjdqJW3OnOWMrgQejD25huzSOk0VwOSyS60hnqi', 'Administrator', '', 1, '2026-11-03 22:43:47'),
-(15, 'Brixangelo Sedillo', 'sbrixangelo@gmail.com', '105516443382730612843', '', 'Buyer', NULL, 1, '2026-11-08 20:28:40'),
-(16, 'janjan', 'lorenxz09@gmail.com', '103742249210865975607', '$2y$10$Iu6s7rcZp6HQjMt7aG5KXeXzUKF5FH/OsPDykKfj2zxZniSQ.Hb3O', 'Buyer', NULL, 1, '2026-11-16 11:11:43');
+INSERT INTO `users` (`id`, `username`, `email`, `google_id`, `password`, `role`, `verification_token`, `is_verified`, `created_at`, `first_name`, `last_name`, `phone_number`, `mailing_address`, `email_notifications`, `auction_notifications`, `marketing_notifications`) VALUES
+(1, 'admin', 'admin@houseandlot.com', NULL, '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrator', NULL, 1, '2026-10-28 16:12:53', NULL, NULL, NULL, NULL, 1, 1, 0),
+(2, 'angelotorres', 'sbrixtorres@gmail.com', '117620565271595565048', '$2y$10$8F23Ert8nry1.BXgvYv7pugpU23KZw/HMKvCYGb.gf9fxQ/RajZve', 'Buyer', NULL, 1, '2026-11-01 19:00:42', NULL, NULL, NULL, NULL, 1, 1, 0),
+(3, 'admin1', 'jasdfljksafdjl@gmail.com', NULL, 'admin123', 'Administrator', NULL, 0, '2026-11-02 14:50:42', NULL, NULL, NULL, NULL, 1, 1, 0),
+(4, 'asdf', 'asdf', NULL, 'asdf', 'Administrator', NULL, 0, '2026-11-02 15:07:28', NULL, NULL, NULL, NULL, 1, 1, 0),
+(5, 'shootermen99', 'brix@gmail.com', NULL, '$2y$10$8aNQJBVmDwbk3PnCjBXx0OuGW4AU76MqHOG6YnZ.D.4KNhD03C1Lu', 'Administrator', NULL, 0, '2026-11-02 15:09:24', NULL, NULL, NULL, NULL, 1, 1, 0),
+(6, 'nreco', 'asdfadsf@gmail.com', NULL, '$2y$10$2OkkKhk/MO1W9us1f.pugeMTCb.EfB2IazpRvz5MVlmnftSn5Dnnu', 'Administrator', NULL, 0, '2026-11-02 16:55:43', NULL, NULL, NULL, NULL, 1, 1, 0),
+(7, 'qwe', 'qwe@gmail.com', NULL, 'qwe', 'Buyer', NULL, 0, '2026-11-02 17:21:57', NULL, NULL, NULL, NULL, 1, 1, 0),
+(9, 'brix sedillo', 'brixsedillo@gmail.com', '118305699041903171057', '$2y$10$s0Epu705gyrBJXm4.ZDXR.aZYbQX5YRyDjFhMAOWjMRXE6kFYewiW', 'Buyer', NULL, 1, '2026-11-03 21:45:13', 'Brix Angelo', 'Sedillo', '09486318794', '82, 8th st Lakandula', 1, 1, 0),
+(13, 'brixbuyer', 'brixbuyer@gmail.com', NULL, '$2y$10$N2nBVgDfTyB2RpFi5rKP3.BcZQazrVQLW3X/6uZRrP9epo3KfcxB6', 'Staff', NULL, 1, '2026-11-03 22:43:47', NULL, NULL, NULL, NULL, 1, 1, 0),
+(14, 'brixadmin', 'brixadmin@gmail.com', NULL, '$2y$10$gLyJYcX4UftxmosjdqJW3OnOWMrgQejD25huzSOk0VwOSyS60hnqi', 'Administrator', '', 1, '2026-11-03 22:43:47', NULL, NULL, NULL, NULL, 1, 1, 0),
+(15, 'Brixangelo Sedillo', 'sbrixangelo@gmail.com', '105516443382730612843', '', 'Buyer', NULL, 1, '2026-11-08 20:28:40', NULL, NULL, NULL, NULL, 1, 1, 0),
+(16, 'janjan', 'lorenxz09@gmail.com', '103742249210865975607', '$2y$10$Iu6s7rcZp6HQjMt7aG5KXeXzUKF5FH/OsPDykKfj2zxZniSQ.Hb3O', 'Client', NULL, 1, '2026-11-16 11:11:43', 'Brix Angelo', 'Sedillo', '', '82, 8th st Lakandula', 1, 1, 0);
 
 -- --------------------------------------------------------
 
@@ -474,6 +610,15 @@ ALTER TABLE `notifications`
   ADD KEY `user_id` (`user_id`);
 
 --
+-- Indexes for table `password_change_requests`
+--
+ALTER TABLE `password_change_requests`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_password_change_token` (`token_hash`),
+  ADD KEY `idx_password_change_user` (`user_id`),
+  ADD KEY `idx_password_change_expiry` (`expires_at`);
+
+--
 -- Indexes for table `password_resets`
 --
 ALTER TABLE `password_resets`
@@ -511,6 +656,15 @@ ALTER TABLE `reservations`
   ADD KEY `user_id` (`user_id`);
 
 --
+-- Indexes for table `seller_applications`
+--
+ALTER TABLE `seller_applications`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_seller_app_user` (`user_id`),
+  ADD KEY `idx_seller_app_status` (`status`),
+  ADD KEY `fk_seller_app_reviewer` (`reviewer_id`);
+
+--
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
@@ -534,13 +688,13 @@ ALTER TABLE `viewing_bookings`
 -- AUTO_INCREMENT for table `activity_logs`
 --
 ALTER TABLE `activity_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT for table `auctions`
 --
 ALTER TABLE `auctions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `auction_results`
@@ -576,7 +730,13 @@ ALTER TABLE `inquiries`
 -- AUTO_INCREMENT for table `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `password_change_requests`
+--
+ALTER TABLE `password_change_requests`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `password_resets`
@@ -588,7 +748,7 @@ ALTER TABLE `password_resets`
 -- AUTO_INCREMENT for table `properties`
 --
 ALTER TABLE `properties`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `property_images`
@@ -607,6 +767,12 @@ ALTER TABLE `property_tags`
 --
 ALTER TABLE `reservations`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+
+--
+-- AUTO_INCREMENT for table `seller_applications`
+--
+ALTER TABLE `seller_applications`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -666,6 +832,12 @@ ALTER TABLE `notifications`
   ADD CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
+-- Constraints for table `password_change_requests`
+--
+ALTER TABLE `password_change_requests`
+  ADD CONSTRAINT `fk_password_change_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `properties`
 --
 ALTER TABLE `properties`
@@ -689,6 +861,13 @@ ALTER TABLE `property_tags`
 ALTER TABLE `reservations`
   ADD CONSTRAINT `reservations_ibfk_1` FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `reservations_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `seller_applications`
+--
+ALTER TABLE `seller_applications`
+  ADD CONSTRAINT `fk_seller_app_reviewer` FOREIGN KEY (`reviewer_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_seller_app_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `viewing_bookings`
