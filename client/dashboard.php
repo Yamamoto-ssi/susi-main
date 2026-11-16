@@ -135,7 +135,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
     <link
         href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=figma-2">
+    <link rel="stylesheet" href="styles.css?v=minimal-20261117">
 </head>
 
 <body>
