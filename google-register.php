@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
         $error = 'Username must be 3–50 characters and use only letters, numbers, dots, underscores, or hyphens.';
-        } elseif (strlen($password) < 8) {
+    } elseif (strlen($password) < 8) {
         $error = 'Your password must be at least 8 characters long.';
     } else {
         try {
