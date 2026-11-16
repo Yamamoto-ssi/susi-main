@@ -34,12 +34,12 @@ try {
     if ($action === 'signup') {
         $name = trim((string)($_POST['name'] ?? ''));
         $username = trim((string)($_POST['username'] ?? ''));
-        $role = (string)($_POST['role'] ?? 'Buyer');
+        $role = 'Buyer';
         if ($name === '') respond(422,['ok'=>false,'message'=>'Please enter your full name.']);
         if (!preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
             respond(422,['ok'=>false,'message'=>'Username must be 3–50 characters and use only letters, numbers, dots, underscores, or hyphens.']);
         }
-        if (!in_array($role, ['Buyer','Client'], true)) respond(422,['ok'=>false,'message'=>'Please choose Buyer or Seller as your account type.']);
+        // Every new account starts as a Buyer. Seller access requires a reviewed application.
         if (strlen($password) < 8) respond(422,['ok'=>false,'message'=>'Your password must be at least 8 characters.']);
 
         $check = hb_fetch_one(hb_query($conn, 'SELECT id FROM users WHERE email=? OR username=? LIMIT 1', [$email,$username]));
