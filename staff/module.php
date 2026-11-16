@@ -123,7 +123,7 @@ try {
  error_log('HomeBid staff module query failed: '.'Database operation failed');
  $error = $error ?: 'Some dashboard information could not be loaded. Verify that your database tables are up to date.';
 }
-$nav=[['dashboard.php','Dashboard','dashboard'],['approvals.php','Approvals','approvals'],['properties.php','Properties','properties'],['bidding.php','Bidding','bidding'],['staff.php','Staff','staff'],['buyers.php','Buyers','buyers'],['reports.php','Reports','reports'],['notification.php','Notifications','notification'],['roles_sec.php','Roles & Security','roles_sec']];
+$nav=[['dashboard.php','Dashboard','dashboard'],['approvals.php','Approvals','approvals'],['properties.php','Properties','properties'],['bidding.php','Bidding','bidding'],['staff.php','Staff','staff'],['buyers.php','Buyers','buyers'],['reports.php','Reports','reports'],['notification.php','Notifications','notification'],['seller-applications.php','Seller applications','seller-applications'],['roles_sec.php','Roles & Security','roles_sec']];
 ?>
 <!doctype html>
 <html lang="en">
