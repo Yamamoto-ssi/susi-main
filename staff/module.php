@@ -20,9 +20,8 @@ if (!isset($pages[$module])) { http_response_code(404); exit('Page not found.');
 $notice = ''; $error = '';
 function sm_h($v): string { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'); }
 function sm_money($v): string { return '₱' . number_format((float)$v, 2); }
-function sm_log(MySQLiConnection $conn, int $userId, string $action, string $type, ?int $recordId): void {
- $q=$conn->prepare('INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)');
- $q->execute([$userId,$action,$type,$recordId,$_SERVER['REMOTE_ADDR']??null]);
+function sm_log(mysqli $conn, int $userId, string $action, string $type, ?int $recordId): void {
+ $q = hb_query($conn, 'INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)', [$userId,$action,$type,$recordId,$_SERVER['REMOTE_ADDR']??null]);
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  verify_csrf();
@@ -30,80 +29,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
  try {
   if ($module === 'approvals' && in_array($action,['approve'],true) && $id) {
-   $q=$conn->prepare('UPDATE properties SET is_approved=1 WHERE id=? AND is_approved=0');
-   $q->execute([$id]);
-   if ($q->rowCount()) { sm_log($conn,$staffId,'Approved property listing','property',$id); $notice='Property approved.'; }
+   $q = hb_query($conn, 'UPDATE properties SET is_approved=1 WHERE id=? AND is_approved=0', [$id]);
+   if (mysqli_affected_rows($conn)) { sm_log($conn,$staffId,'Approved property listing','property',$id); $notice='Property approved.'; }
    else $error='The property was already reviewed or could not be found.';
   } elseif ($module === 'properties' && $action === 'feature' && $id) {
-   $q=$conn->prepare('UPDATE properties SET is_featured=1-is_featured WHERE id=?'); $q->execute([$id]);
+   $q = hb_query($conn, 'UPDATE properties SET is_featured=1-is_featured WHERE id=?', [$id]);
    sm_log($conn,$staffId,'Changed property featured status','property',$id); $notice='Featured status updated.';
   } elseif ($module === 'properties' && $action === 'status' && $id) {
    $status=(string)($_POST['status']??'');
    if (!in_array($status,['Available','Reserved','Sold','Auction'],true)) throw new RuntimeException('Invalid property status.');
-   $q=$conn->prepare('UPDATE properties SET status=? WHERE id=?'); $q->execute([$status,$id]);
+   $q = hb_query($conn, 'UPDATE properties SET status=? WHERE id=?', [$status,$id]);
    sm_log($conn,$staffId,'Updated property status to '.$status,'property',$id); $notice='Property status updated.';
   } elseif ($module === 'bidding' && $action === 'auction_status' && $id) {
    $status=(string)($_POST['status']??'');
    if (!in_array($status,['upcoming','active','ended','cancelled'],true)) throw new RuntimeException('Invalid auction status.');
-   $q=$conn->prepare('UPDATE auctions SET status=? WHERE id=?'); $q->execute([$status,$id]);
+   $q = hb_query($conn, 'UPDATE auctions SET status=? WHERE id=?', [$status,$id]);
    sm_log($conn,$staffId,'Updated auction status to '.$status,'auction',$id); $notice='Auction status updated.';
   } elseif ($module === 'notification' && $action === 'inquiry_status' && $id) {
    $status=(string)($_POST['status']??'');
    if (!in_array($status,['pending','responded','closed'],true)) throw new RuntimeException('Invalid inquiry status.');
-   $q=$conn->prepare('UPDATE inquiries SET status=? WHERE id=?'); $q->execute([$status,$id]);
+   $q = hb_query($conn, 'UPDATE inquiries SET status=? WHERE id=?', [$status,$id]);
    sm_log($conn,$staffId,'Updated inquiry status','inquiry',$id); $notice='Inquiry updated.';
   } elseif ($module === 'staff' && $action === 'add_staff' && $isAdmin) {
    $username=trim((string)($_POST['username']??'')); $email=trim((string)($_POST['email']??'')); $password=(string)($_POST['password']??'');
    if ($username==='' || !filter_var($email,FILTER_VALIDATE_EMAIL) || strlen($password)<8) throw new RuntimeException('Enter a username, valid email, and password with at least 8 characters.');
-   $q=$conn->prepare("INSERT INTO users (username,email,password,role,is_verified) VALUES (?,?,?,'Staff',1)");
-   $q->execute([$username,$email,password_hash($password,PASSWORD_DEFAULT)]);
-   $newId=(int)$conn->lastInsertId(); sm_log($conn,$staffId,'Created staff account','user',$newId); $notice='Staff account created.';
+   $q = hb_query($conn, "INSERT INTO users (username,email,password,role,is_verified) VALUES (?,?,?,'Staff',1)", [$username,$email,password_hash($password,PASSWORD_DEFAULT)]);
+   $newId=(int)mysqli_insert_id($conn); sm_log($conn,$staffId,'Created staff account','user',$newId); $notice='Staff account created.';
   } elseif ($module === 'roles_sec' && $action === 'change_role' && $id && $isAdmin) {
    $role=(string)($_POST['role']??'');
    if (!in_array($role,['Administrator','Staff','Buyer'],true)) throw new RuntimeException('Invalid role.');
    if ($id === $staffId) throw new RuntimeException('You cannot change your own role.');
-   $q=$conn->prepare('UPDATE users SET role=? WHERE id=?'); $q->execute([$role,$id]);
+   $q = hb_query($conn, 'UPDATE users SET role=? WHERE id=?', [$role,$id]);
    sm_log($conn,$staffId,'Changed user role to '.$role,'user',$id); $notice='Account role updated.';
   } else {
    $error = 'That action is not available for your account.';
   }
- } catch (PDOException $e) {
-  error_log('HomeBid staff module action failed: '.$e->getMessage());
+ } catch (mysqli_sql_exception $e) {
+  error_log('HomeBid staff module action failed: '.'Database operation failed');
   $error = 'The change could not be saved. Check that the account details are not already in use.';
- } catch (RuntimeException $e) { $error=$e->getMessage(); }
+ } catch (RuntimeException $e) { $error='Database operation failed'; }
 }
 $rows=[]; $columns=[]; $stats=[];
 try {
  switch ($module) {
   case 'approvals':
-   $stats=[['Pending approvals',(int)$conn->query('SELECT COUNT(*) FROM properties WHERE is_approved=0')->fetchColumn()],['Approved listings',(int)$conn->query('SELECT COUNT(*) FROM properties WHERE is_approved=1')->fetchColumn()],['Properties total',(int)$conn->query('SELECT COUNT(*) FROM properties')->fetchColumn()]];
-   $rows=$conn->query("SELECT p.id,p.title,p.location,p.price,p.status,p.is_approved,p.created_at,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 ORDER BY p.created_at ASC")->fetchAll();
+   $stats=[['Pending approvals',(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM properties WHERE is_approved=0'))],['Approved listings',(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM properties WHERE is_approved=1'))],['Properties total',(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM properties'))]];
+   $rows=hb_fetch_all(hb_query($conn, "SELECT p.id,p.title,p.location,p.price,p.status,p.is_approved,p.created_at,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 ORDER BY p.created_at ASC"));
    $columns=['id'=>'ID','title'=>'Property','username'=>'Submitted by','email'=>'Email','location'=>'Location','price'=>'Price','created_at'=>'Submitted'];
    break;
   case 'properties':
-   $stats=[['Total properties',(int)$conn->query('SELECT COUNT(*) FROM properties')->fetchColumn()],['Pending review',(int)$conn->query('SELECT COUNT(*) FROM properties WHERE is_approved=0')->fetchColumn()],['Featured',(int)$conn->query('SELECT COUNT(*) FROM properties WHERE is_featured=1')->fetchColumn()]];
-   $rows=$conn->query('SELECT p.id,p.title,p.location,p.price,p.status,p.is_approved,p.is_featured,u.username FROM properties p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC')->fetchAll();
+   $stats=[['Total properties',(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM properties'))],['Pending review',(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM properties WHERE is_approved=0'))],['Featured',(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM properties WHERE is_featured=1'))]];
+   $rows=hb_fetch_all(hb_query($conn, 'SELECT p.id,p.title,p.location,p.price,p.status,p.is_approved,p.is_featured,u.username FROM properties p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC'));
    $columns=['id'=>'ID','title'=>'Property','username'=>'Owner','location'=>'Location','price'=>'Price','status'=>'Status','is_approved'=>'Approval','is_featured'=>'Featured'];
    break;
   case 'bidding':
-   $stats=[['Auctions',(int)$conn->query('SELECT COUNT(*) FROM auctions')->fetchColumn()],['Active',(int)$conn->query("SELECT COUNT(*) FROM auctions WHERE status='active'")->fetchColumn()],['Total bids',(int)$conn->query('SELECT COUNT(*) FROM bids')->fetchColumn()]];
-   $rows=$conn->query('SELECT a.id,p.title,a.starting_bid,a.current_bid,a.start_time,a.end_time,a.status,COALESCE(u.username,"—") highest_bidder,(SELECT COUNT(*) FROM bids b WHERE b.property_id=a.property_id) bid_count FROM auctions a JOIN properties p ON p.id=a.property_id LEFT JOIN users u ON u.id=a.highest_bidder_id ORDER BY a.created_at DESC')->fetchAll();
+   $stats=[['Auctions',(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM auctions'))],['Active',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM auctions WHERE status='active'"))],['Total bids',(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM bids'))]];
+   $rows=hb_fetch_all(hb_query($conn, 'SELECT a.id,p.title,a.starting_bid,a.current_bid,a.start_time,a.end_time,a.status,COALESCE(u.username,"—") highest_bidder,(SELECT COUNT(*) FROM bids b WHERE b.property_id=a.property_id) bid_count FROM auctions a JOIN properties p ON p.id=a.property_id LEFT JOIN users u ON u.id=a.highest_bidder_id ORDER BY a.created_at DESC'));
    $columns=['id'=>'Auction ID','title'=>'Property','starting_bid'=>'Starting bid','current_bid'=>'Current bid','highest_bidder'=>'Highest bidder','bid_count'=>'Bids','start_time'=>'Starts','end_time'=>'Ends','status'=>'Status'];
    break;
   case 'staff':
    if (!$isAdmin) { http_response_code(403); exit('Only administrators can manage staff accounts.'); }
-   $stats=[['Staff accounts',(int)$conn->query("SELECT COUNT(*) FROM users WHERE role='Staff'")->fetchColumn()],['Administrators',(int)$conn->query("SELECT COUNT(*) FROM users WHERE role='Administrator'")->fetchColumn()],['Verified staff',(int)$conn->query("SELECT COUNT(*) FROM users WHERE role='Staff' AND is_verified=1")->fetchColumn()]];
-   $rows=$conn->query("SELECT id,username,email,is_verified,created_at FROM users WHERE role='Staff' ORDER BY created_at DESC")->fetchAll();
+   $stats=[['Staff accounts',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM users WHERE role='Staff'"))],['Administrators',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM users WHERE role='Administrator'"))],['Verified staff',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM users WHERE role='Staff' AND is_verified=1"))]];
+   $rows=hb_fetch_all(hb_query($conn, "SELECT id,username,email,is_verified,created_at FROM users WHERE role='Staff' ORDER BY created_at DESC"));
    $columns=['id'=>'ID','username'=>'Staff member','email'=>'Email','is_verified'=>'Verified','created_at'=>'Created'];
    break;
   case 'buyers':
-   $stats=[['Buyers',(int)$conn->query("SELECT COUNT(*) FROM users WHERE role='Buyer'")->fetchColumn()],['Verified buyers',(int)$conn->query("SELECT COUNT(*) FROM users WHERE role='Buyer' AND is_verified=1")->fetchColumn()],['Buyer bids',(int)$conn->query("SELECT COUNT(*) FROM bids b JOIN users u ON u.id=b.user_id WHERE u.role='Buyer'")->fetchColumn()]];
-   $rows=$conn->query("SELECT u.id,u.username,u.email,u.is_verified,u.created_at,(SELECT COUNT(*) FROM bids b WHERE b.user_id=u.id) bid_count FROM users u WHERE u.role='Buyer' ORDER BY u.created_at DESC")->fetchAll();
+   $stats=[['Buyers',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM users WHERE role='Buyer'"))],['Verified buyers',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM users WHERE role='Buyer' AND is_verified=1"))],['Buyer bids',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM bids b JOIN users u ON u.id=b.user_id WHERE u.role='Buyer'"))]];
+   $rows=hb_fetch_all(hb_query($conn, "SELECT u.id,u.username,u.email,u.is_verified,u.created_at,(SELECT COUNT(*) FROM bids b WHERE b.user_id=u.id) bid_count FROM users u WHERE u.role='Buyer' ORDER BY u.created_at DESC"));
    $columns=['id'=>'ID','username'=>'Buyer','email'=>'Email','is_verified'=>'Verified','bid_count'=>'Bids placed','created_at'=>'Joined'];
    break;
   case 'reports':
-   $stats=[['Properties',(int)$conn->query('SELECT COUNT(*) FROM properties')->fetchColumn()],['Auctions',(int)$conn->query('SELECT COUNT(*) FROM auctions')->fetchColumn()],['Payments received',(float)$conn->query("SELECT COALESCE(SUM(amount),0) FROM checkout_payments WHERE status='paid'")->fetchColumn()]];
-   $rows=$conn->query("SELECT DATE(created_at) report_date,COUNT(*) total_bids,COUNT(DISTINCT user_id) bidders,MAX(bid_amount) highest_bid FROM bids GROUP BY DATE(created_at) ORDER BY report_date DESC LIMIT 30")->fetchAll();
+   $stats=[['Properties',(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM properties'))],['Auctions',(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM auctions'))],['Payments received',(float)hb_fetch_value(hb_query($conn, "SELECT COALESCE(SUM(amount),0) FROM checkout_payments WHERE status='paid'"))]];
+   $rows=hb_fetch_all(hb_query($conn, "SELECT DATE(created_at) report_date,COUNT(*) total_bids,COUNT(DISTINCT user_id) bidders,MAX(bid_amount) highest_bid FROM bids GROUP BY DATE(created_at) ORDER BY report_date DESC LIMIT 30"));
    $columns=['report_date'=>'Date','total_bids'=>'Bids','bidders'=>'Unique bidders','highest_bid'=>'Highest bid'];
    if (isset($_GET['export']) && $_GET['export']==='csv') {
     header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="homebid-bid-report.csv"');
@@ -111,19 +108,19 @@ try {
    }
    break;
   case 'notification':
-   $stats=[['Open inquiries',(int)$conn->query("SELECT COUNT(*) FROM inquiries WHERE status='pending'")->fetchColumn()],['Pending reservations',(int)$conn->query("SELECT COUNT(*) FROM reservations WHERE status='Pending'")->fetchColumn()],['Viewing requests',(int)$conn->query("SELECT COUNT(*) FROM viewing_bookings WHERE status='Pending'")->fetchColumn()]];
-   $rows=$conn->query("SELECT i.id,i.subject,i.message,i.status,i.created_at,u.username,u.email,p.title property_title FROM inquiries i JOIN users u ON u.id=i.user_id LEFT JOIN properties p ON p.id=i.property_id ORDER BY i.created_at DESC LIMIT 100")->fetchAll();
+   $stats=[['Open inquiries',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM inquiries WHERE status='pending'"))],['Pending reservations',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM reservations WHERE status='Pending'"))],['Viewing requests',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM viewing_bookings WHERE status='Pending'"))]];
+   $rows=hb_fetch_all(hb_query($conn, "SELECT i.id,i.subject,i.message,i.status,i.created_at,u.username,u.email,p.title property_title FROM inquiries i JOIN users u ON u.id=i.user_id LEFT JOIN properties p ON p.id=i.property_id ORDER BY i.created_at DESC LIMIT 100"));
    $columns=['id'=>'ID','subject'=>'Inquiry','username'=>'From','email'=>'Email','property_title'=>'Property','message'=>'Message','status'=>'Status','created_at'=>'Received'];
    break;
   case 'roles_sec':
    if (!$isAdmin) { http_response_code(403); exit('Only administrators can change account roles.'); }
-   $stats=[['Administrators',(int)$conn->query("SELECT COUNT(*) FROM users WHERE role='Administrator'")->fetchColumn()],['Staff',(int)$conn->query("SELECT COUNT(*) FROM users WHERE role='Staff'")->fetchColumn()],['Buyers',(int)$conn->query("SELECT COUNT(*) FROM users WHERE role='Buyer'")->fetchColumn()]];
-   $rows=$conn->query('SELECT id,username,email,role,is_verified,created_at FROM users ORDER BY created_at DESC')->fetchAll();
+   $stats=[['Administrators',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM users WHERE role='Administrator'"))],['Staff',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM users WHERE role='Staff'"))],['Buyers',(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM users WHERE role='Buyer'"))]];
+   $rows=hb_fetch_all(hb_query($conn, 'SELECT id,username,email,role,is_verified,created_at FROM users ORDER BY created_at DESC'));
    $columns=['id'=>'ID','username'=>'Account','email'=>'Email','role'=>'Role','is_verified'=>'Verified','created_at'=>'Created'];
    break;
  }
-} catch (PDOException $e) {
- error_log('HomeBid staff module query failed: '.$e->getMessage());
+} catch (mysqli_sql_exception $e) {
+ error_log('HomeBid staff module query failed: '.'Database operation failed');
  $error = $error ?: 'Some dashboard information could not be loaded. Verify that your database tables are up to date.';
 }
 $nav=[['dashboard.php','Dashboard','dashboard'],['approvals.php','Approvals','approvals'],['properties.php','Properties','properties'],['bidding.php','Bidding','bidding'],['staff.php','Staff','staff'],['buyers.php','Buyers','buyers'],['reports.php','Reports','reports'],['notification.php','Notifications','notification'],['roles_sec.php','Roles & Security','roles_sec']];
