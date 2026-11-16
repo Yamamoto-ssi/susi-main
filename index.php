@@ -256,12 +256,6 @@ function homebid_money($amount): string {
                         autocomplete="name"></label>
                 <label id="usernameField" hidden>Username<input type="text" name="username" maxlength="50" placeholder="Choose a username"
                         autocomplete="username"></label>
-                <label id="roleField" hidden>Account type
-                    <select name="role">
-                        <option value="Buyer">Buyer</option>
-                        <option value="Client">Seller</option>
-                    </select>
-                </label>
                 <label id="loginIdentifierLabel">Email address<input type="text" name="email" placeholder="you@example.com" autocomplete="username"
                         required></label>
                 <label>Password<input type="password" name="password" placeholder="Enter your password"
