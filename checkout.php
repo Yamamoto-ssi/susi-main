@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos(strtolower($_SERVER['CONTENT
             }
         }
 
-        if ($payment['status'] !== 'paid' && $payment['status'] !== 'expired') {
+        if ($payment['status'] !== 'paid' && ($payment['status'] !== 'expired' || $callbackStatus === 'PAID')) {
             $newStatus = strtolower($callbackStatus);
             $paymentUpdate = $conn->prepare('UPDATE checkout_payments SET status = ? WHERE id = ?');
             $paymentUpdate->bind_param('si', $newStatus, $payment['id']);
