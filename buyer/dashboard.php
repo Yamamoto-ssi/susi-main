@@ -112,7 +112,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                 class="<?=$tab==='browse'?'active':''?>" href="?tab=browse"><?=buyer_icon('search')?><span>Browse
                     properties</span><b><?=number_format((int)$stats['available_properties'])?></b></a><a
                 class="<?=$tab==='my-bids'?'active':''?>" href="?tab=my-bids"><?=buyer_icon('gavel')?><span>My
-                    bids</span><b><?=number_format((int)$stats['bids_placed'])?></b></a><a class="<?=$tab==='activity'?'active':''?>" href="?tab=activity"><?=buyer_icon('clock')?><span>Activity log</span></a><a href="profile.php"><?=buyer_icon('home')?><span>Profile &amp; settings</span></a><a
+                    bids</span><b><?=number_format((int)$stats['bids_placed'])?></b></a><a class="<?=$tab==='activity'?'active':''?>" href="?tab=activity"><?=buyer_icon('clock')?><span>Activity log</span></a><a href="profile.php"><?=buyer_icon('home')?><span>Profile &amp; settings</span></a><a href="seller-application.php"><?=buyer_icon('building')?><span>Become a seller</span></a><a
                 href="../index.php#contact"><?=buyer_icon('bell')?><span>Help &amp; support</span></a></nav>
         <div class="side-bottom">
             <div class="help-card"><span>Need a hand?</span>
