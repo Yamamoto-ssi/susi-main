@@ -32,7 +32,7 @@ $account=buyer_one($conn,'SELECT username,email FROM users WHERE id=?',[$userId]
 $username=$account['username']??'Buyer';
 $initials=strtoupper(substr(preg_replace('/[^a-z0-9]/i','',$username)?:'HB',0,2));
 $tab=$_GET['tab']??'home';
-$allowed=['home','browse','my-bids'];
+$allowed=['home','browse','my-bids','activity'];
 if(!in_array($tab,$allowed,true))$tab='home';
 $search=trim((string)($_GET['q']??''));
 $stats=buyer_one($conn,"SELECT
@@ -43,17 +43,45 @@ $stats=buyer_one($conn,"SELECT
 $auctions=buyer_rows($conn,"SELECT a.id auction_id,a.status auction_status,a.starting_bid,a.current_bid,a.start_time,a.end_time,a.property_id,
  p.title,p.location,p.description,p.lot_area,p.floor_area,p.price,p.image_path,
  (SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count
- FROM auctions a JOIN properties p ON p.id=a.property_id
- WHERE p.is_approved=1 AND a.review_status='approved' AND p.status='Auction' AND a.status IN ('active','upcoming')
+ FROM properties p
+ LEFT JOIN auctions a ON a.property_id=p.id
+ WHERE p.is_approved=1
+ AND ((p.status='Available') OR (p.status='Auction' AND a.review_status='approved' AND a.status IN ('active','upcoming')))
  AND (p.title LIKE ? OR p.location LIKE ? OR p.description LIKE ?)
- ORDER BY CASE WHEN a.status='active' THEN 0 ELSE 1 END,a.end_time ASC LIMIT 12",
+ ORDER BY CASE WHEN a.status='active' THEN 0 WHEN a.status='upcoming' THEN 1 ELSE 2 END,
+ COALESCE(a.end_time,p.created_at) ASC LIMIT 24",
  ['%'.$search.'%','%'.$search.'%','%'.$search.'%']);
 $myBids=buyer_rows($conn,"SELECT b.id,b.bid_amount,b.status bid_status,b.created_at,p.title,p.location,a.status auction_status,a.current_bid,a.end_time,p.image_path
  FROM bids b JOIN properties p ON p.id=b.property_id
  LEFT JOIN auctions a ON a.property_id=p.id
- WHERE b.user_id=? ORDER BY b.created_at DESC LIMIT 10",[$userId]);
+ WHERE b.user_id=? ORDER BY b.created_at DESC LIMIT 100",[$userId]);
 $recentBids=array_slice($myBids,0,4);
-$tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids'=>'My bidding activity'];
+$activityLog=buyer_rows($conn,"SELECT activity,entity_type,record_id,created_at FROM (
+ SELECT action activity,entity_type,record_id,created_at FROM activity_logs WHERE user_id=?
+ UNION ALL
+ SELECT CONCAT('Placed a bid of ₱',FORMAT(b.bid_amount,2),' on ',p.title),'Bid',b.id,b.created_at
+ FROM bids b JOIN properties p ON p.id=b.property_id WHERE b.user_id=?
+ UNION ALL
+ SELECT CONCAT('Created a reservation for ',p.title,' (',r.status,')'),'Reservation',r.id,r.created_at
+ FROM reservations r JOIN properties p ON p.id=r.property_id WHERE r.user_id=?
+ UNION ALL
+ SELECT CONCAT('Requested a property viewing for ',p.title,' (',v.status,')'),'Viewing',v.id,v.created_at
+ FROM viewing_bookings v JOIN properties p ON p.id=v.property_id WHERE v.user_id=?
+ UNION ALL
+ SELECT CONCAT('Booked a property visit for ',p.title,' (',b.status,')'),'Booking',b.id,b.created_at
+ FROM bookings b JOIN properties p ON p.id=b.property_id WHERE b.user_id=?
+ UNION ALL
+ SELECT CONCAT('Sent an inquiry: ',i.subject),'Inquiry',i.id,i.created_at
+ FROM inquiries i WHERE i.user_id=?
+ UNION ALL
+ SELECT CONCAT('Payment ',pay.status,' for ',p.title,' — ₱',FORMAT(pay.amount,2)),'Payment',pay.id,pay.created_at
+ FROM checkout_payments pay JOIN properties p ON p.id=pay.property_id WHERE pay.user_id=?
+ UNION ALL
+ SELECT CONCAT(n.title,': ',n.message),'Notification',n.id,n.created_at
+ FROM notifications n WHERE n.user_id=?
+) buyer_activity ORDER BY created_at DESC LIMIT 40",
+ [$userId,$userId,$userId,$userId,$userId,$userId,$userId,$userId]);
+$tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids'=>'My bidding activity','activity'=>'Activity log'];
 ?>
 <!doctype html>
 <html lang="en">
@@ -83,7 +111,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                 class="<?=$tab==='browse'?'active':''?>" href="?tab=browse"><?=buyer_icon('search')?><span>Browse
                     properties</span><b><?=number_format((int)$stats['available_properties'])?></b></a><a
                 class="<?=$tab==='my-bids'?'active':''?>" href="?tab=my-bids"><?=buyer_icon('gavel')?><span>My
-                    bids</span><b><?=number_format((int)$stats['bids_placed'])?></b></a><a
+                    bids</span><b><?=number_format((int)$stats['bids_placed'])?></b></a><a class="<?=$tab==='activity'?'active':''?>" href="?tab=activity"><?=buyer_icon('clock')?><span>Activity log</span></a><a
                 href="../index.php#contact"><?=buyer_icon('bell')?><span>Help & support</span></a></nav>
         <div class="side-bottom">
             <div class="help-card"><span>Need a hand?</span>
@@ -141,17 +169,16 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                 <div class="section-heading">
                     <div><span class="eyebrow">HANDPICKED FOR YOU</span>
                         <h2>Featured opportunities</h2>
-                        <p>Explore properties currently available on HomeBid.</p>
+                        <p>Explore approved property listings and live auction opportunities on HomeBid.</p>
                     </div><a class="text-link" href="?tab=browse">See all properties <?=buyer_icon('arrow',14)?></a>
                 </div>
                 <div class="property-grid">
-                    <?php if(!$auctions):?><div class="empty-state">There are no approved auction listings available
-                        right now. Please check again soon.</div><?php endif;?>
+                    <?php if(!$auctions):?><div class="empty-state">There are no approved properties available right now. Please check again soon.</div><?php endif;?>
                     <?php foreach(array_slice($auctions,0,3) as $p):?><article class="property-card">
                         <div class="property-photo"><?php if(!empty($p['image_path'])):?><img
                                 src="<?=bh(str_starts_with($p['image_path'],'http')?$p['image_path']:'../'.ltrim($p['image_path'],'/'))?>"
                                 alt="<?=bh($p['title'])?>"><?php else:?><div class="photo-placeholder">⌂</div>
-                            <?php endif;?><?=buyer_badge($p['auction_status'])?><span
+                            <?php endif;?><?=!empty($p['auction_id'])?buyer_badge($p['auction_status']):buyer_badge('Available')?><span
                                 class="bid-count"><?=number_format((int)$p['bid_count'])?> bids</span></div>
                         <div class="property-info"><span class="location"><?=buyer_icon('home',13)?>
                                 <?=bh($p['location'])?></span>
@@ -159,9 +186,8 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                             <div class="specs"><span><?=number_format((float)$p['lot_area'],0)?> m²
                                     lot</span><span><?=number_format((float)$p['floor_area'],0)?> m² floor</span></div>
                             <div class="price-line">
-                                <div><small>Current
-                                        bid</small><b><?=buyer_money($p['current_bid']??$p['starting_bid'])?></b></div>
-                                <div><small>Starting bid</small><span><?=buyer_money($p['starting_bid'])?></span></div>
+                                <div><small><?=!empty($p['auction_id'])?'Current bid':'Asking price'?></small><b><?=buyer_money(!empty($p['auction_id'])?($p['current_bid']?:$p['starting_bid']):$p['price'])?></b></div>
+                                <?php if(!empty($p['auction_id'])):?><div><small>Starting bid</small><span><?=buyer_money($p['starting_bid'])?></span></div><?php endif;?>
                             </div><a class="card-link" href="../index.php#properties">View listing
                                 <?=buyer_icon('arrow',14)?></a>
                         </div>
@@ -199,15 +225,13 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                     value="browse"><label><?=buyer_icon('search',16)?><input name="q" value="<?=bh($search)?>"
                         placeholder="Search property name, location, or details"></label><button class="btn gold">Search
                     properties</button><a href="?tab=browse">Clear</a></form>
-            <div class="browse-meta"><b><?=count($auctions)?> opportunities</b><span>Showing approved and available
-                    listings</span></div>
-            <div class="property-grid browse-grid"><?php if(!$auctions):?><div class="empty-state">No matching auction
-                    properties found. Try another search.</div><?php endif;?><?php foreach($auctions as $p):?><article
+            <div class="browse-meta"><b><?=count($auctions)?> opportunities</b><span>Showing approved listings and approved auctions</span></div>
+            <div class="property-grid browse-grid"><?php if(!$auctions):?><div class="empty-state">No matching approved properties found. Try another search.</div><?php endif;?><?php foreach($auctions as $p):?><article
                     class="property-card">
                     <div class="property-photo"><?php if(!empty($p['image_path'])):?><img
                             src="<?=bh(str_starts_with($p['image_path'],'http')?$p['image_path']:'../'.ltrim($p['image_path'],'/'))?>"
                             alt="<?=bh($p['title'])?>"><?php else:?><div class="photo-placeholder">⌂</div>
-                        <?php endif;?><?=buyer_badge($p['auction_status'])?><span
+                        <?php endif;?><?=!empty($p['auction_id'])?buyer_badge($p['auction_status']):buyer_badge('Available')?><span
                             class="bid-count"><?=number_format((int)$p['bid_count'])?> bids</span></div>
                     <div class="property-info"><span class="location"><?=buyer_icon('home',13)?>
                             <?=bh($p['location'])?></span>
@@ -215,9 +239,8 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                         <div class="specs"><span><?=number_format((float)$p['lot_area'],0)?> m²
                                 lot</span><span><?=number_format((float)$p['floor_area'],0)?> m² floor</span></div>
                         <div class="price-line">
-                            <div><small>Current
-                                    bid</small><b><?=buyer_money($p['current_bid']??$p['starting_bid'])?></b></div>
-                            <div><small>Starting bid</small><span><?=buyer_money($p['starting_bid'])?></span></div>
+                            <div><small><?=!empty($p['auction_id'])?'Current bid':'Asking price'?></small><b><?=buyer_money(!empty($p['auction_id'])?($p['current_bid']?:$p['starting_bid']):$p['price'])?></b></div>
+                            <?php if(!empty($p['auction_id'])):?><div><small>Starting bid</small><span><?=buyer_money($p['starting_bid'])?></span></div><?php endif;?>
                         </div><a class="card-link" href="../index.php#properties">View listing
                             <?=buyer_icon('arrow',14)?></a>
                     </div>
@@ -231,7 +254,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                 <div class="panel-heading">
                     <div>
                         <h2>Bid history</h2>
-                        <p><?=count($myBids)?> recent records</p>
+                        <p><?=count($myBids)?> records shown (latest 100)</p>
                     </div>
                 </div><?php if(!$myBids):?><div class="empty-state">No bids yet. Explore available properties to get
                     started.</div><?php else:?><div class="table-wrap">
@@ -256,6 +279,30 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                             </tr><?php endforeach;?></tbody>
                     </table>
                 </div><?php endif;?>
+            </article>
+            <?php elseif($tab==='activity'):?>
+            <section class="page-intro"><span class="eyebrow">YOUR HOMEBID HISTORY</span>
+                <h1>Activity log</h1>
+                <p>A timeline of your bids, reservations, property visits, inquiries, payments, and account updates.</p>
+            </section>
+            <article class="activity-panel full">
+                <div class="panel-heading"><div><h2>Recent activity</h2><p><?=count($activityLog)?> latest events</p></div>
+                    <a href="?tab=my-bids">View bid history</a></div>
+                <?php if(!$activityLog):?>
+                    <div class="empty-state">No activity has been recorded yet. Your HomeBid actions will appear here.</div>
+                <?php else:?>
+                    <div class="timeline">
+                    <?php foreach($activityLog as $event):?>
+                        <div class="timeline-item">
+                            <span class="timeline-dot"><?=buyer_icon(strtolower($event['entity_type'])==='bid'?'gavel':(strtolower($event['entity_type'])==='notification'?'bell':'clock'),16)?></span>
+                            <div class="timeline-copy"><b><?=bh($event['activity'])?></b>
+                                <small><?=bh(ucfirst($event['entity_type']))?><?=!empty($event['record_id'])?' #'.(int)$event['record_id']:''?></small>
+                            </div>
+                            <time><?=date('M j, Y · g:i a',strtotime($event['created_at']))?></time>
+                        </div>
+                    <?php endforeach;?>
+                    </div>
+                <?php endif;?>
             </article>
             <?php endif;?>
             <footer>© <?=date('Y')?> HomeBid. A smarter way to find your next home.</footer>
