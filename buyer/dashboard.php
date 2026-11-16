@@ -42,7 +42,7 @@ $stats=buyer_one($conn,"SELECT
  (SELECT COUNT(*) FROM properties WHERE is_approved=1 AND review_status='approved' AND status='Available') available_properties,
  (SELECT COUNT(*) FROM bids WHERE user_id=?) bids_placed,
  (SELECT COALESCE(MAX(bid_amount),0) FROM bids WHERE user_id=?) highest_bid",[$userId,$userId]);
-$auctions=buyer_rows($conn,"SELECT a.id auction_id,a.status auction_status,a.starting_bid,a.current_bid,a.start_time,a.end_time,a.property_id,
+$auctions=buyer_rows($conn,"SELECT a.id auction_id,a.status auction_status,a.starting_bid,a.current_bid,a.start_time,a.end_time,p.id AS property_id,
  p.title,p.location,p.description,p.lot_area,p.floor_area,p.price,p.image_path,
  (SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count
  FROM properties p
