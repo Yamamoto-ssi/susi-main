@@ -75,7 +75,8 @@ $stats=buyer_one($conn,"SELECT
  (SELECT COUNT(*) FROM bids WHERE user_id=?) bids_placed,
  (SELECT COALESCE(MAX(bid_amount),0) FROM bids WHERE user_id=?) highest_bid",[$userId,$userId]);
 $myBids=buyer_rows($conn,"SELECT b.id,b.bid_amount,b.status bid_status,b.created_at,p.title,p.location,a.id auction_id,a.highest_bidder_id,a.status auction_status,a.current_bid,a.end_time,p.image_path,
-  EXISTS(SELECT 1 FROM checkout_payments cp WHERE cp.auction_id=a.id AND cp.user_id=b.user_id AND cp.status='paid') AS auction_paid
+  EXISTS(SELECT 1 FROM checkout_payments cp WHERE cp.auction_id=a.id AND cp.user_id=b.user_id AND cp.status='paid') AS auction_paid,
+  (SELECT cp.id FROM checkout_payments cp WHERE cp.auction_id=a.id AND cp.user_id=b.user_id AND cp.status='paid' ORDER BY cp.id DESC LIMIT 1) AS auction_payment_id
   FROM bids b JOIN properties p ON p.id=b.property_id
   LEFT JOIN auctions a ON a.id=(SELECT a2.id FROM auctions a2 WHERE a2.property_id=p.id ORDER BY a2.id DESC LIMIT 1)
   WHERE b.user_id=? ORDER BY b.created_at DESC LIMIT 100",[$userId]);
@@ -308,7 +309,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                                 <td><?=buyer_badge($b['bid_status'])?></td>
                                 <td><?php if ((int)($b['highest_bidder_id'] ?? 0) === $userId && empty($b['auction_paid']) && !empty($b['auction_id']) && (strtolower((string)$b['auction_status']) === 'ended' || (!empty($b['end_time']) && strtotime($b['end_time']) <= time()))): ?>
                                     <form method="post" action="../checkout.php"><input type="hidden" name="csrf_token" value="<?=bh(csrf_token())?>"><input type="hidden" name="payment_type" value="auction"><input type="hidden" name="auction_id" value="<?=(int)$b['auction_id']?>"><button class="btn gold" type="submit">Pay with Xendit</button></form>
-                                    <?php elseif (!empty($b['auction_paid'])): ?><span class="status green">Paid</span><?php else: ?><span class="muted">—</span><?php endif; ?></td>
+                                    <?php elseif (!empty($b['auction_paid'])): ?><span class="status green">Paid</span> <a class="btn gold" target="_blank" rel="noopener" href="../receipt/auction-receipt.php?payment_id=<?=(int)$b['auction_payment_id']?>">View receipt</a><?php else: ?><span class="muted">—</span><?php endif; ?></td>
                             </tr><?php endforeach;?></tbody>
                     </table>
                 </div><?php endif;?>
@@ -331,6 +332,19 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                 <?php endif;?>
             </article>
             <?php elseif($tab==='activity'):?>
+            <?php $paidReservations=buyer_rows($conn,"SELECT cp.id payment_id,cp.amount,cp.created_at,p.title FROM checkout_payments cp JOIN properties p ON p.id=cp.property_id WHERE cp.user_id=? AND cp.payment_type='reservation' AND cp.status='paid' ORDER BY cp.created_at DESC LIMIT 50",[$userId]); ?>
+            <article class="activity-panel full">
+                <div class="panel-heading"><div><h2>Property reservation receipts</h2><p>Receipts for completed reservation payments</p></div></div>
+                <?php if(!$paidReservations):?><div class="empty-state">No paid property reservations yet.</div><?php else:?>
+                    <div class="timeline"><?php foreach($paidReservations as $paidReservation):?>
+                        <div class="timeline-item"><span class="timeline-dot"><?=buyer_icon('clock',16)?></span>
+                            <div class="timeline-copy"><b><?=bh($paidReservation['title'])?></b><small><?=buyer_money($paidReservation['amount'])?> · Paid reservation</small></div>
+                            <time><?=date('M j, Y',strtotime($paidReservation['created_at']))?> · <a target="_blank" rel="noopener" href="../receipt/property-receipt.php?payment_id=<?=(int)$paidReservation['payment_id']?>">View receipt</a></time>
+                        </div>
+                    <?php endforeach;?></div>
+                <?php endif;?>
+            </article>
+
             <section class="page-intro"><span class="eyebrow">YOUR HOMEBID HISTORY</span>
                 <h1>Activity log</h1>
                 <p>A timeline of your bids, reservations, property visits, inquiries, payments, and account updates.</p>
