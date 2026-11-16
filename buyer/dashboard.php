@@ -53,7 +53,7 @@ $auctions=buyer_rows($conn,"SELECT a.id auction_id,a.status auction_status,a.sta
  ORDER BY CASE WHEN a.status='active' THEN 0 WHEN a.status='upcoming' THEN 1 ELSE 2 END,
  COALESCE(a.end_time,p.created_at) ASC LIMIT 24",
  ['%'.$search.'%','%'.$search.'%','%'.$search.'%']);
-$myBids=buyer_rows($conn,"SELECT b.id,b.bid_amount,b.status bid_status,b.created_at,p.title,p.location,a.status auction_status,a.current_bid,a.end_time,p.image_path
+$myBids=buyer_rows($conn,"undefined$userId AND cp.status='paid') AS auction_paid
  FROM bids b JOIN properties p ON p.id=b.property_id
  LEFT JOIN auctions a ON a.id=(SELECT a2.id FROM auctions a2 WHERE a2.property_id=p.id ORDER BY a2.id DESC LIMIT 1)
  WHERE b.user_id=? ORDER BY b.created_at DESC LIMIT 100",[$userId]);
@@ -270,6 +270,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                                 <th>Auction</th>
                                 <th>Bid date</th>
                                 <th>Status</th>
+                                <th>Payment</th>
                             </tr>
                         </thead>
                         <tbody><?php foreach($myBids as $b):?><tr>
@@ -279,6 +280,9 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                                 <td><?=buyer_badge($b['auction_status']??'unknown')?></td>
                                 <td><?=date('M j, Y g:i a',strtotime($b['created_at']))?></td>
                                 <td><?=buyer_badge($b['bid_status'])?></td>
+                                <td><?php if ((int)($b['highest_bidder_id'] ?? 0) === $userId && empty($b['auction_paid']) && !empty($b['auction_id']) && (strtolower((string)$b['auction_status']) === 'ended' || (!empty($b['end_time']) && strtotime($b['end_time']) <= time()))): ?>
+                                    <form method="post" action="../checkout.php"><input type="hidden" name="csrf_token" value="<?=bh(csrf_token())?>"><input type="hidden" name="payment_type" value="auction"><input type="hidden" name="auction_id" value="<?=(int)$b['auction_id']?>"><button class="btn gold" type="submit">Pay with Xendit</button></form>
+                                    <?php elseif (!empty($b['auction_paid'])): ?><span class="status green">Paid</span><?php else: ?><span class="muted">—</span><?php endif; ?></td>
                             </tr><?php endforeach;?></tbody>
                     </table>
                 </div><?php endif;?>
