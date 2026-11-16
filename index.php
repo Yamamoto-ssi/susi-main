@@ -20,7 +20,8 @@ try {
             ORDER BY a2.id DESC
             LIMIT 1
         )
-        WHERE p.is_approved = 1 AND p.status = 'Available'
+        WHERE p.is_approved = 1 AND p.review_status = 'approved'
+          AND (p.status = 'Available' OR (p.status = 'Auction' AND a.review_status = 'approved' AND a.status IN ('active','upcoming')))
         ORDER BY p.created_at DESC, p.id DESC
         LIMIT 6
     ");
@@ -233,7 +234,7 @@ function homebid_money($amount): string {
             </div>
             <div>
                 <h4>Resources</h4><a href="#properties">Bidding guide</a><a href="#contact">Privacy Policy</a><a
-                    href="#contact">Terms and Conditions</a>
+                    href="#contact">Terms and Conditions</a><a href="staff-login.php">Staff &amp; Admin Login</a>
             </div>
             <div>
                 <h4>Get in touch</h4><a href="mailto:hello@homebid.example">hello@homebid.example</a><a
