@@ -6,7 +6,7 @@ require_once __DIR__ . '/config/db.php';
 $featuredProperties = [];
 $featuredLoadError = false;
 try {
-    $featuredQuery = $pdo->query("
+    $featuredQuery = hb_query($conn, "
         SELECT
             p.id, p.title, p.location, p.description, p.lot_area, p.floor_area,
             p.price, p.status, p.is_approved, p.image_path,
@@ -24,9 +24,9 @@ try {
         ORDER BY p.created_at DESC, p.id DESC
         LIMIT 6
     ");
-    $featuredProperties = $featuredQuery->fetchAll();
+    $featuredProperties = hb_fetch_all($featuredQuery);
 } catch (Throwable $e) {
-    error_log('HomeBid featured properties: ' . $e->getMessage());
+    error_log('HomeBid featured properties: ' . 'Database operation failed');
     $featuredLoadError = true;
 }
 function homebid_money($amount): string {
