@@ -13,6 +13,7 @@ $pages = [
  'buyers'=>['Buyers','View registered buyer accounts.'],
  'reports'=>['Reports','Review platform activity and performance.'],
  'notification'=>['Notifications','Review inquiries, reservations, and viewing requests.'],
+ 'seller-applications'=>['Seller applications','Review buyer requests to become verified sellers.'],
  'roles_sec'=>['Roles & Security','Manage account roles and access.']
 ];
 if (!isset($pages[$module])) { http_response_code(404); exit('Page not found.'); }
