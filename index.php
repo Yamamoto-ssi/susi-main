@@ -47,7 +47,7 @@ function homebid_money($amount): string {
     <link
         href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261116-2">
+    <link rel="stylesheet" href="style.css?v=20261116-3">
 </head>
 
 <body>
