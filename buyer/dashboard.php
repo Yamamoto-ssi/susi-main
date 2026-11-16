@@ -6,8 +6,8 @@ require_once __DIR__.'/../config/db.php';
 
 function bh($v):string{return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
 function buyer_money($v):string{return '₱'.number_format((float)$v,2);}
-function buyer_rows(MySQLiConnection $conn,string $sql,array $args=[]):array{$s=$conn->prepare($sql);$s->execute($args);return $s->fetchAll(MYSQLI_ASSOC);}
-function buyer_one(MySQLiConnection $conn,string $sql,array $args=[]):array{$s=$conn->prepare($sql);$s->execute($args);return $s->fetch(MYSQLI_ASSOC)?:[];}
+function buyer_rows(mysqli $conn,string $sql,array $args=[]):array{$s = hb_query($conn, $sql, $args);return hb_fetch_all($s);}
+function buyer_one(mysqli $conn,string $sql,array $args=[]):array{$s = hb_query($conn, $sql, $args);return hb_fetch_one($s)?:[];}
 function buyer_icon(string $name,int $size=18):string{
 $paths=[
 'home'=>'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
