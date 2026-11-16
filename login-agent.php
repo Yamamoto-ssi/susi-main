@@ -26,19 +26,34 @@ try {
     $email = trim((string)($_POST['email'] ?? ''));
     $loginIdentifier = $email;
     $password = (string)($_POST['password'] ?? '');
+
     if ($password === '' || $loginIdentifier === '' || ($action === 'signup' && !filter_var($email, FILTER_VALIDATE_EMAIL))) {
         respond(422, ['ok'=>false,'message'=>$action === 'signup' ? 'Enter a valid email and password.' : 'Enter your email address or username and password.']);
     }
 
     if ($action === 'signup') {
         $name = trim((string)($_POST['name'] ?? ''));
-        if ($name === '' || strlen($password) < 8) respond(422, ['ok'=>false,'message'=>'Enter your name and a password with at least 8 characters.']);
-        $username = function_exists('mb_substr') ? mb_substr($name, 0, 50) : substr($name, 0, 50);
-        $check = hb_query($conn, 'SELECT id FROM users WHERE email=? OR username=? LIMIT 1', [$email, $username]);
-        if (hb_fetch_one($check)) respond(409, ['ok'=>false,'message'=>'That email or username is already registered.']);
-        $insert = hb_query($conn, "INSERT INTO users (username,email,password,role,is_verified) VALUES (?,?,?,'Buyer',0)", [$username,$email,password_hash($password,PASSWORD_DEFAULT)]);
-        $_SESSION['user_id']=(int)mysqli_insert_id($conn); $_SESSION['role']='Buyer'; $_SESSION['username']=$username;
-        respond(200,['ok'=>true,'message'=>'Account created.','redirect'=>'buyer/dashboard.php']);
+        $username = trim((string)($_POST['username'] ?? ''));
+        $role = (string)($_POST['role'] ?? 'Buyer');
+        if ($name === '') respond(422,['ok'=>false,'message'=>'Please enter your full name.']);
+        if (!preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
+            respond(422,['ok'=>false,'message'=>'Username must be 3–50 characters and use only letters, numbers, dots, underscores, or hyphens.']);
+        }
+        if (!in_array($role, ['Buyer','Client'], true)) respond(422,['ok'=>false,'message'=>'Please choose Buyer or Seller as your account type.']);
+        if (strlen($password) < 8) respond(422,['ok'=>false,'message'=>'Your password must be at least 8 characters.']);
+
+        $check = hb_fetch_one(hb_query($conn, 'SELECT id FROM users WHERE email=? OR username=? LIMIT 1', [$email,$username]));
+        if ($check) respond(409,['ok'=>false,'message'=>'That email address or username is already registered.']);
+
+        hb_query($conn, 'INSERT INTO users (username,email,password,role,is_verified) VALUES (?,?,?,?,1)',
+            [$username,$email,password_hash($password,PASSWORD_DEFAULT),$role]);
+        $userId = (int)mysqli_insert_id($conn);
+        session_regenerate_id(true);
+        $_SESSION['user_id']=$userId;
+        $_SESSION['role']=$role;
+        $_SESSION['username']=$username;
+        $redirect = $role === 'Client' ? 'client/dashboard.php' : 'buyer/dashboard.php';
+        respond(200,['ok'=>true,'message'=>'Your HomeBid account has been created.','redirect'=>$redirect]);
     }
 
     $q = hb_query($conn, 'SELECT id,username,password,role FROM users WHERE email=? OR username=? LIMIT 1', [$loginIdentifier,$loginIdentifier]);
