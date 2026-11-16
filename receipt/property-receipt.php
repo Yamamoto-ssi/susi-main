@@ -3,37 +3,18 @@ declare(strict_types=1);
 require_once __DIR__.'/../config/auth.php';
 $userId = require_roles(['Buyer']);
 require_once __DIR__.'/../config/db.php';
-
 function bh($v): string { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'); }
 function buyer_money($v): string { return '₱' . number_format((float)$v, 2); }
 function buyer_one(mysqli $conn, string $sql, array $args = []): array { $s = hb_query($conn, $sql, $args); return hb_fetch_one($s) ?: []; }
-
-// Fetch logged-in buyer account details
-$account = buyer_one($conn, 'SELECT id, username, email FROM users WHERE id=?', [$userId]);
-$buyerName = $account['username'] ?? 'Juan Dela Cruz';
-$buyerEmail = $account['email'] ?? 'buyer@homebid.ph';
-$receiptNo = 'PRV-' . date('Y') . '-' . str_pad((string)$userId, 5, '0', STR_PAD_LEFT);
-
-// Temporary property purchase / reservation receipt data
-$receipt = [
-    'buyer_name'     => $buyerName,
-    'buyer_address'  => 'Angeles City, Pampanga 2009',
-    'buyer_phone'    => '+63 912 345 6789',
-    'buyer_email'    => $buyerEmail,
-    'constituent_id' => $receiptNo,
-    'purchased_on'   => date('m/d/Y'),
-    'printed_on'     => date('m/d/Y'),
-    'payment_type'   => 'Reservation Fee / Bank Deposit',
-    'reference_no'   => 'REF-9941820',
-    'item' => [
-        'name'           => 'Minimalist Townhouse — Angeles City, Pampanga',
-        'category'       => 'House & Lot',
-        'transaction'    => 'Direct Purchase / Reservation',
-        'property_price' => 3200000.00,
-        'amount_paid'    => 50000.00, // Reservation or initial downpayment
-        'balance_due'    => 3150000.00
-    ]
-];
+$paymentId = filter_var($_GET['payment_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+if (!$paymentId) { http_response_code(404); exit('Receipt not found.'); }
+$receiptData = buyer_one($conn, "SELECT cp.id, cp.amount, cp.external_id, cp.invoice_id, cp.created_at, p.title, p.property_type, p.price, p.location, u.username, u.email, u.phone_number, u.mailing_address FROM checkout_payments cp JOIN properties p ON p.id=cp.property_id JOIN users u ON u.id=cp.user_id WHERE cp.id=? AND cp.user_id=? AND cp.payment_type='reservation' AND cp.status='paid' LIMIT 1", [$paymentId, $userId]);
+if (!$receiptData) { http_response_code(404); exit('A paid property reservation receipt could not be found for this account.'); }
+$buyerName=$receiptData['username']?:'Buyer'; $buyerEmail=$receiptData['email']?:'';
+$buyerAddress=$receiptData['mailing_address']?:$receiptData['location']; $buyerPhone=$receiptData['phone_number']?:'Not provided';
+$receiptNo='HB-RES-'.str_pad((string)$paymentId,6,'0',STR_PAD_LEFT); $paymentDate=strtotime($receiptData['created_at'])?:time();
+$propertyPrice=(float)$receiptData['price']; $amountPaid=(float)$receiptData['amount'];
+$receipt=['buyer_name'=>$buyerName,'buyer_address'=>$buyerAddress,'buyer_phone'=>$buyerPhone,'buyer_email'=>$buyerEmail,'constituent_id'=>$receiptNo,'purchased_on'=>date('m/d/Y',$paymentDate),'printed_on'=>date('m/d/Y'),'payment_type'=>'Xendit Online Reservation Payment','reference_no'=>$receiptData['invoice_id']?:$receiptData['external_id'],'item'=>['name'=>$receiptData['title'],'category'=>$receiptData['property_type']?:'Real Estate','transaction'=>'Property Reservation','property_price'=>$propertyPrice,'amount_paid'=>$amountPaid,'balance_due'=>max(0,$propertyPrice-$amountPaid)]];
 ?>
 <!doctype html>
 <html lang="en">
