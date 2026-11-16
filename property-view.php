@@ -47,6 +47,61 @@ if (!$property) {
     exit('This property is unavailable or has not been approved. <a href="index.php">Browse HomeBid</a>');
 }
 
+$bidMessage = '';
+$bidMessageType = 'error';
+if (isset($_GET['bid']) && $_GET['bid'] === 'success') {
+    $bidMessage = 'Your bid was submitted successfully.';
+    $bidMessageType = 'success';
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place_bid') {
+    if (empty($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'Buyer') {
+        http_response_code(403);
+        $bidMessage = 'Please sign in with a buyer account to place a bid.';
+    } else {
+        verify_csrf();
+        $bidAmount = filter_var($_POST['bid_amount'] ?? null, FILTER_VALIDATE_FLOAT);
+        $buyerId = (int)$_SESSION['user_id'];
+        try {
+            if (empty($property['auction_id'])) {
+                throw new RuntimeException('This property is not currently listed for auction.');
+            }
+            mysqli_begin_transaction($conn);
+            $auctionResult = hb_query($conn, "SELECT a.*,p.user_id AS seller_id,p.title
+                FROM auctions a JOIN properties p ON p.id=a.property_id
+                WHERE a.id=? AND a.property_id=? AND p.is_approved=1 AND p.review_status='approved'
+                  AND a.review_status='approved' FOR UPDATE", [(int)$property['auction_id'], $propertyId]);
+            $auction = hb_fetch_one($auctionResult);
+            if (!$auction) throw new RuntimeException('This auction is no longer available.');
+            $now = time();
+            if ($auction['status'] !== 'active' || strtotime($auction['start_time']) > $now || strtotime($auction['end_time']) <= $now) {
+                throw new RuntimeException('Bidding is not open. Please check the auction start and end times.');
+            }
+            $minimumBid = max((float)$auction['starting_bid'], (float)$auction['current_bid'] + 1);
+            if ($bidAmount === false || $bidAmount <= (float)$auction['current_bid'] || $bidAmount < (float)$auction['starting_bid']) {
+                throw new RuntimeException('Your bid must be at least ₱' . number_format($minimumBid, 2) . '.');
+            }
+            if ((int)$auction['seller_id'] === $buyerId) throw new RuntimeException('You cannot bid on your own property.');
+            hb_query($conn, "INSERT INTO bids (property_id,user_id,bid_amount,status) VALUES (?,?,?,'Pending')",
+                [$propertyId, $buyerId, number_format((float)$bidAmount, 2, '.', '')]);
+            hb_query($conn, "UPDATE auctions SET current_bid=?,highest_bidder_id=? WHERE id=?",
+                [number_format((float)$bidAmount, 2, '.', ''), $buyerId, (int)$auction['id']]);
+            hb_query($conn, "INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address)
+                VALUES (?,?,?,?,?)", [$buyerId, 'Placed a bid of ₱' . number_format((float)$bidAmount, 2) . ' on ' . $auction['title'],
+                'bid', (int)mysqli_insert_id($conn), $_SERVER['REMOTE_ADDR'] ?? null]);
+            mysqli_commit($conn);
+            header('Location: property-view.php?id=' . $propertyId . '&bid=success');
+            exit;
+        } catch (RuntimeException $error) {
+            mysqli_rollback($conn);
+            $bidMessage = $error->getMessage();
+        } catch (Throwable $error) {
+            mysqli_rollback($conn);
+            error_log('HomeBid bid submission failed: ' . $error->getMessage());
+            $bidMessage = 'We could not submit your bid. Please try again.';
+        }
+    }
+}
+
 $gallery = [];
 if (!empty($property['image_path'])) $gallery[] = $property['image_path'];
 try {
@@ -122,8 +177,21 @@ $fullAddress = $addressParts ? implode(', ', $addressParts) : ($property['locati
 <div class="info"><span>Property status</span><b><?=property_h(!empty($property['auction_id'])?$property['auction_status']:$property['status'])?></b></div>
 <?php if(!empty($property['auction_id'])):?><div class="info"><span>Starting bid</span><b><?=property_money($property['starting_bid'])?></b></div><div class="info"><span>Auction starts</span><b><?=date('M j, Y g:i A',strtotime($property['start_time']))?></b></div><div class="info"><span>Auction ends</span><b><?=date('M j, Y g:i A',strtotime($property['end_time']))?></b></div><?php endif;?>
 <div class="info"><span>Listed on</span><b><?=date('M j, Y',strtotime($property['created_at']))?></b></div>
-<a class="btn" href="<?=property_h($buyerLink)?>"><?=$isLoggedIn && $role==='Buyer'?'Go to buyer dashboard':'Log in to continue'?></a>
-<?php if (!$isLoggedIn || $role !== 'Buyer'): ?><p class="notice">Sign in as a buyer to access bidding and other buyer features. Auction participation is subject to account verification and auction rules.</p><?php endif; ?>
+<?php if ($bidMessage !== ''): ?><p class="notice" style="color:<?=$bidMessageType==='success'?'#167044':'#b42318'?>"><?=property_h($bidMessage)?></p><?php endif; ?>
+<?php if (!$isLoggedIn || $role !== 'Buyer'): ?>
+<a class="btn" href="<?=property_h($buyerLink)?>">Log in to continue</a>
+<p class="notice">Sign in as a buyer to access bidding and other buyer features. Auction participation is subject to account verification and auction rules.</p>
+<?php elseif (!empty($property['auction_id'])): ?>
+<?php if (($property['auction_status'] ?? '') === 'active' && strtotime($property['start_time']) <= time() && strtotime($property['end_time']) > time()): ?>
+<form method="post" style="margin-top:18px">
+<label for="bid_amount" style="display:block;font-size:12px;font-weight:700;margin-bottom:7px">Your bid amount (₱)</label>
+<input id="bid_amount" name="bid_amount" type="number" min="<?=number_format(max((float)$property['starting_bid'],(float)$property['current_bid']+1),2,'.','')?>" step="0.01" required style="width:100%;padding:13px;border:1px solid var(--line);border-radius:9px;font:inherit">
+<input type="hidden" name="action" value="place_bid"><input type="hidden" name="csrf_token" value="<?=property_h(csrf_token())?>">
+<button class="btn" type="submit" style="width:100%;border:0;cursor:pointer">Place bid</button>
+<p class="notice">Minimum next bid: <?=property_money(max((float)$property['starting_bid'],(float)$property['current_bid']+1))?></p>
+</form>
+<?php else: ?><p class="notice">Bidding is not open right now. Check the auction schedule above.</p><?php endif; ?>
+<?php else: ?><p class="notice">This property is available for purchase. Contact the seller or use the reservation process to proceed.</p><?php endif; ?>
 <a class="btn secondary" href="index.php#properties">Browse more properties</a>
 </aside>
 </div>
