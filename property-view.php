@@ -123,7 +123,7 @@ $fullAddress = $addressParts ? implode(', ', $addressParts) : ($property['locati
 <?php if(!empty($property['auction_id'])):?><div class="info"><span>Starting bid</span><b><?=property_money($property['starting_bid'])?></b></div><div class="info"><span>Auction starts</span><b><?=date('M j, Y g:i A',strtotime($property['start_time']))?></b></div><div class="info"><span>Auction ends</span><b><?=date('M j, Y g:i A',strtotime($property['end_time']))?></b></div><?php endif;?>
 <div class="info"><span>Listed on</span><b><?=date('M j, Y',strtotime($property['created_at']))?></b></div>
 <a class="btn" href="<?=property_h($buyerLink)?>"><?=$isLoggedIn && $role==='Buyer'?'Go to buyer dashboard':'Log in to continue'?></a>
-<p class="notice">Sign in as a buyer to access bidding and other buyer features. Auction participation is subject to account verification and auction rules.</p>
+<?php if (!$isLoggedIn || $role !== 'Buyer'): ?><p class="notice">Sign in as a buyer to access bidding and other buyer features. Auction participation is subject to account verification and auction rules.</p><?php endif; ?>
 <a class="btn secondary" href="index.php#properties">Browse more properties</a>
 </aside>
 </div>
