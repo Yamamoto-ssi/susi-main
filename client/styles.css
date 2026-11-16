@@ -48,3 +48,9 @@ form:not(.logout-form){padding:22px 24px 24px}.form-grid{display:grid;grid-templ
 .image-preview-item img{display:block;width:100%;height:86px;object-fit:cover}
 .image-preview-item span{display:block;padding:5px 6px;color:#667382;font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:420px){.image-preview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Cascading Philippine address fields */
+.address-status{margin:-4px 0 2px;color:#89949f;font-size:9px;line-height:1.5}
+#propertyModal .form-grid select{width:100%;min-width:0;height:38px;padding:0 10px;color:#35485a;background:#fff;border:1px solid #dfe3e4;border-radius:6px;font:inherit;font-size:10px}
+#propertyModal .form-grid select:disabled{color:#9aa3ac;background:#f5f6f5;cursor:not-allowed}
+#provinceField[hidden]{display:none}
