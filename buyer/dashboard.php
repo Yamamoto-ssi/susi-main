@@ -46,7 +46,7 @@ $auctions=buyer_rows($conn,"SELECT a.id auction_id,a.status auction_status,a.sta
  (SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count
  FROM properties p
  LEFT JOIN auctions a ON a.id=(SELECT a2.id FROM auctions a2 WHERE a2.property_id=p.id ORDER BY a2.id DESC LIMIT 1)
- WHERE p.is_approved=1 AND p.review_status='approved' AND p.review_status='approved'
+ WHERE p.is_approved=1 AND p.review_status='approved'
  AND ((p.status='Available') OR (p.status='Auction' AND a.review_status='approved' AND a.status IN ('active','upcoming')))
  AND (p.title LIKE ? OR p.location LIKE ? OR p.description LIKE ?)
  ORDER BY CASE WHEN a.status='active' THEN 0 WHEN a.status='upcoming' THEN 1 ELSE 2 END,
