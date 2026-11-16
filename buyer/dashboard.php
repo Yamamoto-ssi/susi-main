@@ -142,7 +142,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                 <div class="hero-copy"><span class="eyebrow">YOUR NEXT CHAPTER STARTS HERE</span>
                     <h1>Find a place<br>to call <em>home.</em></h1>
                     <p>Explore verified properties, follow live auctions, and take the next step toward your dream home.
-                    </p><a class="btn gold" href="?tab=browse">Explore properties <?=buyer_icon('arrow',15)?></a>
+                    </p><div class="hero-actions"><a class="btn gold" href="?tab=browse">Explore properties <?=buyer_icon('arrow',15)?></a><a class="btn" href="seller-application.php">Become a seller <?=buyer_icon('arrow',15)?></a></div>
                 </div>
                 <div class="hero-art">
                     <div class="hero-house">
