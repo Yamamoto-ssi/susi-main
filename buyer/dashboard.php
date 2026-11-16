@@ -22,7 +22,8 @@ $paths=[
 'check'=>'<path d="m5 12 4 4L19 6"/>',
 'menu'=>'<path d="M4 7h16M4 12h16M4 17h16"/>',
 'logout'=>'<path d="M10 17l5-5-5-5m5 5H3m9-9h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/>',
-'filter'=>'<path d="M4 6h16M7 12h10m-7 6h4"/>'
+'filter'=>'<path d="M4 6h16M7 12h10m-7 6h4"/>',
+'trend'=>'<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>'
 ];
 return '<svg width="'.$size.'" height="'.$size.'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'.($paths[$name]??$paths['home']).'</svg>';
 }
