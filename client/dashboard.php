@@ -59,6 +59,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
         $page='auctions';
     } else {
+        $submissionType=($_POST['submission_type']??'listing')==='auction'?'auction':'listing';
+        $auctionStartingBid=(float)($_POST['auction_starting_bid']??0); $auctionStartInput=trim($_POST['auction_start_time']??''); $auctionEndInput=trim($_POST['auction_end_time']??'');
         $t=trim($_POST['title']??''); $d=trim($_POST['description']??'');
         $category=trim($_POST['category']??'');
         $rawTags=trim($_POST['tags']??'');
@@ -76,6 +78,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         try {
             $allowedCategories=['House and Lot','Condominium','Townhouse','Residential Lot','Commercial Property','Apartment','Industrial Property','Other'];
             if(!$t||!$d||!in_array($category,$allowedCategories,true)||!$rawTags||!count($tags)||!$regionName||!$cityName||!$barangayName||!$lotNumber||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete every required property field, including at least one tag, and choose a valid property category.');
+            $auctionStartDate=null; $auctionEndDate=null;
+            if($submissionType==='auction'){$auctionStartDate=DateTime::createFromFormat('Y-m-d\\TH:i',$auctionStartInput);$auctionEndDate=DateTime::createFromFormat('Y-m-d\\TH:i',$auctionEndInput);if($auctionStartingBid<=0||!$auctionStartDate||!$auctionEndDate||$auctionEndDate<=$auctionStartDate||$auctionStartDate<new DateTime())throw new RuntimeException('Enter a valid starting bid and future auction schedule.');}
             if(!isset($_FILES['thumbnail'])||$_FILES['thumbnail']['error']!==UPLOAD_ERR_OK) throw new RuntimeException('Please upload a main property thumbnail.');
             $extraFiles=[];
             if(isset($_FILES['photos'])&&is_array($_FILES['photos']['name'])) {
@@ -90,13 +94,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             foreach($extraFiles as $file) $savedFiles[]=hb_store_property_image($file);
             mysqli_begin_transaction($conn);
             $dbTransaction=true;
-            hb_query($conn,"INSERT INTO properties(user_id,title,description,category,location,region,province,city,barangay,lot_number,lot_area,floor_area,price,status,is_approved,image_path) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'Available',0,?)",[$userId,$t,$d,$category,$l,$regionName,$provinceName!==''?$provinceName:null,$cityName,$barangayName,$lotNumber,$lot,$floor,$price,$thumbnailPath]);
+            hb_query($conn,"INSERT INTO properties(user_id,title,description,category,location,region,province,city,barangay,lot_number,lot_area,floor_area,price,status,is_approved,image_path,review_status,submission_type) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'Available',0,?,'pending',?)",[$userId,$t,$d,$category,$l,$regionName,$provinceName!==''?$provinceName:null,$cityName,$barangayName,$lotNumber,$lot,$floor,$price,$thumbnailPath,$submissionType]);
             $propertyId=mysqli_insert_id($conn);
             foreach($tags as $tag) hb_query($conn,'INSERT INTO property_tags(property_id,tag_name) VALUES(?,?)',[$propertyId,$tag]);
             for($i=1;$i<count($savedFiles);$i++) hb_query($conn,'INSERT INTO property_images(property_id,image_path) VALUES(?,?)',[$propertyId,$savedFiles[$i]]);
+            if($submissionType==='auction'){hb_query($conn,"INSERT INTO auctions(property_id,starting_bid,current_bid,highest_bidder_id,start_time,end_time,status) VALUES(?,?,?,NULL,?,?,'upcoming')",[$propertyId,$auctionStartingBid,$auctionStartingBid,$auctionStartDate->format('Y-m-d H:i:s'),$auctionEndDate->format('Y-m-d H:i:s')]);hb_query($conn,"UPDATE properties SET status='Auction' WHERE id=?",[$propertyId]);}
             mysqli_commit($conn);
             $dbTransaction=false;
-            $notice='Property and photos submitted. Awaiting administrator approval.';
+            $notice=$submissionType==='auction'?'Auction property and photos submitted. Bidding remains unavailable until approval.':'Property and photos submitted. Awaiting review.';
         } catch(Throwable $e) {
             if ($dbTransaction) mysqli_rollback($conn);
             foreach($savedFiles as $path) { $fullPath=dirname(__DIR__).'/'.$path; if(is_file($fullPath)) @unlink($fullPath); }
@@ -333,7 +338,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                                 <tbody><?php if(!$properties):?><tr>
                                         <td colspan="6" class="empty-row">No properties submitted yet.</td>
                                     </tr>
-                                    <?php endif;?><?php foreach($properties as $p):$st=!empty($p['is_approved'])?'Approved':(strtolower($p['status'])==='rejected'?'Rejected':'Pending');?>
+                                    <?php endif;?><?php foreach($properties as $p):$st=!empty($p['is_approved'])?'Approved':ucwords(str_replace('_',' ',$p['review_status']??'pending'));?>
                                     <tr data-status="<?=$st?>">
                                         <td><strong><?=e($p['title'])?></strong><small class="subline">Property
                                                 #<?=$p['id']?></small></td>
@@ -365,8 +370,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                     </div>
                     <div class="approval-callout"><?=ico('shield',25)?><div><strong>Administrator approval is
                                 required</strong>
-                            <p>Only approved properties can be scheduled or published for bidding. Approval decisions
-                                are made exclusively by authorized administrators.</p>
+                            <p>Staff can approve submissions, request revisions, or forward uncertain cases to an administrator. Properties remain unavailable to buyers and bidders until approved.</p>
                         </div>
                     </div>
                     <div class="approval-grid">
@@ -379,8 +383,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                             <h2><?=e($p['title'])?></h2><small>Submitted
                                 <?=e(date('d M Y',strtotime($p['created_at'])))?></small>
                             <div class="feedback"><strong>PROPERTY REVIEW STATUS</strong>
-                                <p><?=$st==='Approved'?'This property is approved and can proceed to auction scheduling.':'Your property is awaiting administrator review.'?>
-                                </p>
+                                <p><?=!empty($p['is_approved'])?'This property is approved.':(($p['review_status']??'pending')==='needs_revision'?'Revision requested: '.($p['review_feedback']??'Please review the requested changes.'):(($p['review_status']??'pending')==='admin_approval'?'Your submission has been forwarded to an administrator.':'Your property is awaiting staff or administrator review.'))?></p>
                             </div><a class="secondary" href="?page=properties">View details <?=ico('arrow')?></a>
                         </article><?php endforeach;?><?php if(!$properties):?><div class="simple-empty">No property
                             submissions to review yet.</div><?php endif;?></div>
@@ -466,11 +469,12 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
         <section class="modal add-choice-modal">
             <div class="modal-head"><div><p>NEW SUBMISSION</p><h2>What would you like to add?</h2><span>Choose what you want to create in your seller account.</span></div><button type="button" onclick="closeAddChoice()"><?=ico('x')?></button></div>
             <div class="add-choice-list">
-                <button type="button" class="add-choice-option" onclick="closeAddChoice();openForm()"><strong>Property</strong><span>Add a new property listing with its details, location, category, tags, and photos.</span><em>Continue to property form →</em></button>
-                <button type="button" class="add-choice-option" onclick="closeAddChoice();openAuctionForm()"><strong>Auction</strong><span>Create a new auction for one of your approved and available properties.</span><em>Continue to auction form →</em></button>
+                <button type="button" class="add-choice-option" onclick="closeAddChoice();openForm()"><strong>Property</strong><span>Create a property listing only. It will be reviewed before buyers can see it.</span><em>Continue to property form →</em></button>
+                <button type="button" class="add-choice-option" onclick="closeAddChoice();openAuctionChoice()"><strong>Auction</strong><span>Use an existing approved property or add a new property specifically for bidding.</span><em>Continue to auction form →</em></button>
             </div>
         </section>
     </div>
+    <div class="modal-layer" id="auctionChoiceModal" hidden><button class="modal-backdrop" onclick="closeAuctionChoice()"></button><section class="modal add-choice-modal"><div class="modal-head"><div><p>NEW AUCTION</p><h2>Choose a property source</h2><span>How would you like to prepare this auction?</span></div><button type="button" onclick="closeAuctionChoice()"><?=ico('x')?></button></div><div class="add-choice-list"><button type="button" class="add-choice-option" onclick="closeAuctionChoice();openAuctionForm()"><strong>Use Existing Property</strong><span>Select one of your approved and available properties.</span><em>Choose existing property →</em></button><button type="button" class="add-choice-option" onclick="closeAuctionChoice();openForm('auction')"><strong>Add New Property</strong><span>Submit property details, photos, starting bid, and schedule together.</span><em>Add property for bidding →</em></button></div></section></div>
     <div class="modal-layer" id="auctionModal" hidden><button class="modal-backdrop" onclick="closeAuctionForm()"></button>
         <section class="modal">
             <div class="modal-head"><div><p>NEW AUCTION</p><h2>Create an auction</h2><span>Select an approved property and set its bidding schedule.</span></div><button type="button" onclick="closeAuctionForm()"><?=ico('x')?></button></div>
@@ -495,12 +499,11 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
             <div class="modal-head">
                 <div>
                     <p>NEW SUBMISSION</p>
-                    <h2>Submit property for bidding</h2><span>Complete the details below. All properties require
-                        approval.</span>
+                    <h2 id="propertyModalTitle">Add a property listing</h2><span id="propertyModalSubtitle">Complete the details below. This listing will be reviewed before publication.</span>
                 </div><button onclick="closeForm()" type="button"><?=ico('x')?></button>
             </div>
             <form method="post" enctype="multipart/form-data">
-                <div class="form-grid"><label class="full">Property title<input name="title" required maxlength="150"
+                <div class="form-grid"><input type="hidden" name="submission_type" id="submissionType" value="listing"><label class="full">Property title<input name="title" required maxlength="150"
                             placeholder="e.g. Bayside Family Residence"></label>
                     <label>Property category
                         <select name="category" required>
@@ -536,7 +539,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                             required type="number" min=".01" step=".01"></label><label>Floor area (sq m)<input
                             name="floor_area" required type="number" min=".01" step=".01"></label><label>Starting bid
                         price<input name="price" required type="number" min=".01" step=".01"></label><label
-                        class="full">Property description<textarea name="description" required></textarea></label>
+                        class="full">Property description<textarea name="description" required></textarea></label><div class="full" id="newAuctionFields" hidden><div class="form-grid"><label>Starting bid (₱)<input type="number" name="auction_starting_bid" id="auctionStartingBid" min="0.01" step="0.01"></label><label>Start date and time<input type="datetime-local" name="auction_start_time" id="auctionStartTime"></label><label>End date and time<input type="datetime-local" name="auction_end_time" id="auctionEndTime"></label></div></div>
                     <label class="full">Main property thumbnail (required)
                         <input type="file" name="thumbnail" id="thumbnailInput" accept="image/jpeg,image/png,image/webp" required>
                         <small class="upload-help">JPG, PNG, or WEBP. Maximum 8 MB.</small>
@@ -547,12 +550,11 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                         <small class="upload-help">Upload at least 1 and up to 3 additional photos. Maximum 8 MB each.</small>
                         <div id="photosPreview" class="image-preview-grid"></div>
                     </label></div>
-                <div class="form-notice"><?=ico('shield')?><p>Submitted properties remain unpublished until an
-                        administrator approves them.</p>
+                <div class="form-notice"><?=ico('shield')?><p>Submitted properties remain unavailable to buyers and bidders until staff or an administrator approves them.</p>
                 </div>
                 <div class="modal-actions"><button type="button" class="secondary"
                         onclick="closeForm()">Cancel</button><button class="primary" type="submit"><?=ico('arrow')?>
-                        Submit for approval</button></div><input type="hidden" name="csrf_token"
+                        Submit for review</button></div><input type="hidden" name="csrf_token"
                     value="<?=e(csrf_token())?>">
             </form>
         </section>
@@ -570,6 +572,8 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
         document.getElementById('addChoiceModal').hidden = true;
         document.body.style.overflow = '';
     }
+    function openAuctionChoice() { document.getElementById("auctionChoiceModal").hidden=false; document.body.style.overflow="hidden"; }
+    function closeAuctionChoice() { document.getElementById("auctionChoiceModal").hidden=true; document.body.style.overflow=""; }
     function openAuctionForm() {
         document.getElementById('auctionModal').hidden = false;
         document.body.style.overflow = 'hidden';
@@ -578,7 +582,13 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
         document.getElementById('auctionModal').hidden = true;
         document.body.style.overflow = '';
     }
-    function openForm() {
+    function openForm(mode='listing') {
+        const isAuction=mode==='auction';
+        document.getElementById('submissionType').value=isAuction?'auction':'listing';
+        document.getElementById('propertyModalTitle').textContent=isAuction?'Add a new auction property':'Add a property listing';
+        document.getElementById('propertyModalSubtitle').textContent=isAuction?'Enter property details, photos, starting bid, and schedule. Approval is required before bidding.':'Complete the details below. This listing will be reviewed before publication.';
+        document.getElementById('newAuctionFields').hidden=!isAuction;
+        ['auctionStartingBid','auctionStartTime','auctionEndTime'].forEach(id=>document.getElementById(id).required=isAuction);
         document.getElementById('propertyModal').hidden = false;
         document.body.style.overflow = 'hidden'
     }
@@ -742,7 +752,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
         if (e.key === 'Enter') location.href = '?page=properties&q=' + encodeURIComponent(gs.value)
     });
     document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { closeForm(); closeAddChoice(); closeAuctionForm(); }
+        if (e.key === 'Escape') { closeForm(); closeAddChoice(); closeAuctionForm(); closeAuctionChoice(); }
     });
     </script>
 </body>
