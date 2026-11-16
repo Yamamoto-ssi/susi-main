@@ -33,6 +33,31 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             }
         }
         $page = 'properties';
+    } elseif (($_POST['action'] ?? '') === 'create_auction') {
+        $propertyId=filter_var($_POST['property_id']??'',FILTER_VALIDATE_INT);
+        $startingBid=(float)($_POST['starting_bid']??0);
+        $startInput=trim($_POST['start_time']??'');
+        $endInput=trim($_POST['end_time']??'');
+        try {
+            if(!$propertyId || $startingBid<=0 || !$startInput || !$endInput) throw new RuntimeException('Complete all auction fields with valid values.');
+            $startDate=DateTime::createFromFormat('Y-m-d\\TH:i',$startInput);
+            $endDate=DateTime::createFromFormat('Y-m-d\\TH:i',$endInput);
+            if(!$startDate || !$endDate || $endDate<=$startDate || $startDate<new DateTime()) throw new RuntimeException('Choose a future start time and an end time after the start.');
+            $q=hb_query($conn,"SELECT id FROM properties WHERE id=? AND user_id=? AND is_approved=1 AND status='Available'",[$propertyId,$userId]);
+            if(!hb_fetch_one($q)) throw new RuntimeException('Choose one of your approved and available properties.');
+            $q=hb_query($conn,"SELECT id FROM auctions WHERE property_id=? AND status IN ('upcoming','active') LIMIT 1",[$propertyId]);
+            if(hb_fetch_one($q)) throw new RuntimeException('This property already has an upcoming or active auction.');
+            mysqli_begin_transaction($conn);
+            hb_query($conn,"INSERT INTO auctions(property_id,starting_bid,current_bid,highest_bidder_id,start_time,end_time,status) VALUES(?,?,?,NULL,?,?,'upcoming')",[$propertyId,$startingBid,$startingBid,$startDate->format('Y-m-d H:i:s'),$endDate->format('Y-m-d H:i:s')]);
+            hb_query($conn,"UPDATE properties SET status='Auction' WHERE id=? AND user_id=?",[$propertyId,$userId]);
+            mysqli_commit($conn);
+            $notice='Auction created successfully and scheduled.';
+        } catch(Throwable $e) {
+            try { mysqli_rollback($conn); } catch(Throwable $ignored) {}
+            $error=$e instanceof RuntimeException?$e->getMessage():'The auction could not be created. Please check the database and try again.';
+            error_log('HomeBid auction creation error: '.$e->getMessage());
+        }
+        $page='auctions';
     } else {
         $t=trim($_POST['title']??''); $d=trim($_POST['description']??'');
         $category=trim($_POST['category']??'');
@@ -137,7 +162,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                 <div class="header-actions"><label class="search"><?=ico('search')?><input id="globalSearch"
                             placeholder="Search properties, auctions..."><kbd>⌘ K</kbd></label><a class="bell"
                         href="?page=notifications"><?=ico('bell')?><span></span></a><button
-                        class="primary small-primary" onclick="openForm()"><?=ico('plus')?> <span>Add
+                        class="primary small-primary" onclick="openAddChoice()"><?=ico('plus')?> <span>Add
                             Property</span></button></div>
             </header>
             <div class="content">
@@ -150,7 +175,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                             property portfolio today.</span>
                     </div>
                     <div class="welcome-actions"><a class="secondary" href="?page=results"><?=ico('file')?> Export
-                            report</a><button class="primary" onclick="openForm()"><?=ico('plus')?> Submit
+                            report</a><button class="primary" onclick="openAddChoice()"><?=ico('plus')?> Submit
                             property</button></div>
                 </section>
                 <section class="stats-grid">
@@ -437,6 +462,34 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
             </div>
         </main>
     </div>
+    <div class="modal-layer" id="addChoiceModal" hidden><button class="modal-backdrop" onclick="closeAddChoice()"></button>
+        <section class="modal add-choice-modal">
+            <div class="modal-head"><div><p>NEW SUBMISSION</p><h2>What would you like to add?</h2><span>Choose what you want to create in your seller account.</span></div><button type="button" onclick="closeAddChoice()"><?=ico('x')?></button></div>
+            <div class="add-choice-list">
+                <button type="button" class="add-choice-option" onclick="closeAddChoice();openForm()"><strong>Property</strong><span>Add a new property listing with its details, location, category, tags, and photos.</span><em>Continue to property form →</em></button>
+                <button type="button" class="add-choice-option" onclick="closeAddChoice();openAuctionForm()"><strong>Auction</strong><span>Create a new auction for one of your approved and available properties.</span><em>Continue to auction form →</em></button>
+            </div>
+        </section>
+    </div>
+    <div class="modal-layer" id="auctionModal" hidden><button class="modal-backdrop" onclick="closeAuctionForm()"></button>
+        <section class="modal">
+            <div class="modal-head"><div><p>NEW AUCTION</p><h2>Create an auction</h2><span>Select an approved property and set its bidding schedule.</span></div><button type="button" onclick="closeAuctionForm()"><?=ico('x')?></button></div>
+            <form method="post">
+                <div class="form-grid">
+                    <label class="full">Approved property
+                        <select name="property_id" required><option value="">Select property</option><?php foreach($properties as $property): if((int)$property['is_approved']===1 && $property['status']==='Available'): ?><option value="<?=e($property['id'])?>"><?=e($property['title'])?> — <?=e($property['location'])?></option><?php endif; endforeach;?></select>
+                        <small class="upload-help">Only your approved and available properties can be auctioned.</small>
+                    </label>
+                    <label class="full">Starting bid (₱)<input type="number" name="starting_bid" required min="0.01" step="0.01" placeholder="Enter starting bid"></label>
+                    <label>Start date and time<input type="datetime-local" name="start_time" required></label>
+                    <label>End date and time<input type="datetime-local" name="end_time" required></label>
+                </div>
+                <div class="form-notice"><?=ico('shield')?><p>The auction will be created as upcoming and will use the selected property's listing.</p></div>
+                <div class="modal-actions"><button type="button" class="secondary" onclick="closeAuctionForm()">Cancel</button><button class="primary" type="submit"><?=ico('gavel')?> Create auction</button></div>
+                <input type="hidden" name="action" value="create_auction"><input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>">
+            </form>
+        </section>
+    </div>
     <div class="modal-layer" id="propertyModal" hidden><button class="modal-backdrop" onclick="closeForm()"></button>
         <section class="modal">
             <div class="modal-head">
@@ -509,6 +562,22 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
         document.getElementById('sidebar').classList.toggle('sidebar-open')
     }
 
+    function openAddChoice() {
+        document.getElementById('addChoiceModal').hidden = false;
+        document.body.style.overflow = 'hidden';
+    }
+    function closeAddChoice() {
+        document.getElementById('addChoiceModal').hidden = true;
+        document.body.style.overflow = '';
+    }
+    function openAuctionForm() {
+        document.getElementById('auctionModal').hidden = false;
+        document.body.style.overflow = 'hidden';
+    }
+    function closeAuctionForm() {
+        document.getElementById('auctionModal').hidden = true;
+        document.body.style.overflow = '';
+    }
     function openForm() {
         document.getElementById('propertyModal').hidden = false;
         document.body.style.overflow = 'hidden'
@@ -673,7 +742,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
         if (e.key === 'Enter') location.href = '?page=properties&q=' + encodeURIComponent(gs.value)
     });
     document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') closeForm()
+        if (e.key === 'Escape') { closeForm(); closeAddChoice(); closeAuctionForm(); }
     });
     </script>
 </body>
