@@ -2,7 +2,66 @@
 declare(strict_types=1);
 require_once __DIR__.'/../config/auth.php'; $userId=require_roles(['Buyer','Client','Staff','Administrator']); require_once __DIR__.'/../config/db.php';
 $page=$_GET['page']??'overview'; $pages=['overview','properties','approvals','auctions','live','results','notifications']; if(!in_array($page,$pages,true))$page='overview'; $notice=$error='';
-if($_SERVER['REQUEST_METHOD']==='POST'){verify_csrf();if(($_POST['action']??'')==='delete_property'){$id=filter_input(INPUT_POST,'property_id',FILTER_VALIDATE_INT);if(!$id)$error='Invalid property selected.';else{$q = hb_query($conn, 'SELECT id FROM properties WHERE id=? AND user_id=?', [$id,$userId]);if(!hb_fetch_one($q))$error='Property not found.';else{$q = hb_query($conn, 'SELECT (SELECT COUNT(*) FROM bids WHERE property_id=?) b,(SELECT COUNT(*) FROM auctions WHERE property_id=?) a,(SELECT COUNT(*) FROM viewing_bookings WHERE property_id=?) v', [$id,$id,$id]);$x=hb_fetch_one($q);if($x['b']+$x['a']+$x['v'])$error='This property has bidding, auction, or viewing activity and cannot be deleted.';else{$q = hb_query($conn, 'DELETE FROM properties WHERE id=? AND user_id=?', [$id,$userId]);$notice='Property deleted.';}}}$page='properties';}else{$t=trim($_POST['title']??'');$d=trim($_POST['description']??'');$l=trim($_POST['location']??'');$lot=(float)($_POST['lot_area']??0);$floor=(float)($_POST['floor_area']??0);$price=(float)($_POST['price']??0);if(!$t||!$d||!$l||$lot<=0||$floor<=0||$price<=0)$error='Complete all fields with valid positive values.';else{$q = hb_query($conn, "INSERT INTO properties(user_id,title,description,location,lot_area,floor_area,price,status,is_approved) VALUES(?,?,?,?,?,?,?,'Available',0)", [$userId,$t,$d,$l,$lot,$floor,$price]);$notice='Property submitted. Awaiting administrator approval.';}$page='properties';}}
+function hb_store_property_image(array $file): string {
+    if (!isset($file['error']) || $file['error'] !== UPLOAD_ERR_OK) throw new RuntimeException('Please choose valid image files.');
+    if (($file['size'] ?? 0) <= 0 || $file['size'] > 8 * 1024 * 1024) throw new RuntimeException('Each image must be smaller than 8 MB.');
+    $imageInfo = @getimagesize($file['tmp_name']);
+    if ($imageInfo === false) throw new RuntimeException('One of the uploaded files is not a valid image.');
+    $allowed = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'];
+    $type = $imageInfo[2] ?? 0;
+    if (!isset($allowed[$type])) throw new RuntimeException('Only JPG, PNG, and WEBP images are allowed.');
+    $directory = __DIR__ . '/../assets/images';
+    if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) throw new RuntimeException('The assets/images folder could not be created.');
+    $filename = 'property_' . bin2hex(random_bytes(12)) . '.' . $allowed[$type];
+    if (!move_uploaded_file($file['tmp_name'], $directory . '/' . $filename)) throw new RuntimeException('A property image could not be saved. Check folder permissions.');
+    return 'assets/images/' . $filename;
+}
+
+if($_SERVER['REQUEST_METHOD']==='POST'){
+    verify_csrf();
+    if (($_POST['action'] ?? '') === 'delete_property') {
+        $id = filter_input(INPUT_POST, 'property_id', FILTER_VALIDATE_INT);
+        if (!$id) $error = 'Invalid property selected.';
+        else {
+            $q = hb_query($conn, 'SELECT id FROM properties WHERE id=? AND user_id=?', [$id, $userId]);
+            if (!hb_fetch_one($q)) $error = 'Property not found.';
+            else {
+                $q = hb_query($conn, 'SELECT (SELECT COUNT(*) FROM bids WHERE property_id=?) b,(SELECT COUNT(*) FROM auctions WHERE property_id=?) a,(SELECT COUNT(*) FROM viewing_bookings WHERE property_id=?) v', [$id,$id,$id]);
+                $x = hb_fetch_one($q);
+                if ($x['b'] + $x['a'] + $x['v']) $error = 'This property has bidding, auction, or viewing activity and cannot be deleted.';
+                else { hb_query($conn, 'DELETE FROM properties WHERE id=? AND user_id=?', [$id,$userId]); $notice = 'Property deleted.'; }
+            }
+        }
+        $page = 'properties';
+    } else {
+        $t=trim($_POST['title']??''); $d=trim($_POST['description']??''); $l=trim($_POST['location']??'');
+        $lot=(float)($_POST['lot_area']??0); $floor=(float)($_POST['floor_area']??0); $price=(float)($_POST['price']??0);
+        $savedFiles=[];
+        try {
+            if(!$t||!$d||!$l||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete all property fields with valid positive values.');
+            if(!isset($_FILES['thumbnail'])||$_FILES['thumbnail']['error']!==UPLOAD_ERR_OK) throw new RuntimeException('Please upload a main property thumbnail.');
+            $extraFiles=[];
+            if(isset($_FILES['photos'])&&is_array($_FILES['photos']['name'])) {
+                foreach($_FILES['photos']['name'] as $i=>$name) {
+                    if($_FILES['photos']['error'][$i]===UPLOAD_ERR_NO_FILE) continue;
+                    $extraFiles[]=['name'=>$name,'type'=>$_FILES['photos']['type'][$i],'tmp_name'=>$_FILES['photos']['tmp_name'][$i],'error'=>$_FILES['photos']['error'][$i],'size'=>$_FILES['photos']['size'][$i]];
+                }
+            }
+            if(count($extraFiles)>3) throw new RuntimeException('You can upload up to 3 additional photos (4 images including the thumbnail).');
+            $thumbnailPath=hb_store_property_image($_FILES['thumbnail']); $savedFiles[]=$thumbnailPath;
+            foreach($extraFiles as $file) $savedFiles[]=hb_store_property_image($file);
+            hb_query($conn,"INSERT INTO properties(user_id,title,description,location,lot_area,floor_area,price,status,is_approved,image_path) VALUES(?,?,?,?,?,?,?,'Available',0,?)",[$userId,$t,$d,$l,$lot,$floor,$price,$thumbnailPath]);
+            $propertyId=mysqli_insert_id($conn);
+            for($i=1;$i<count($savedFiles);$i++) hb_query($conn,'INSERT INTO property_images(property_id,image_path) VALUES(?,?)',[$propertyId,$savedFiles[$i]]);
+            $notice='Property and photos submitted. Awaiting administrator approval.';
+        } catch(Throwable $e) {
+            foreach($savedFiles as $path) { $fullPath=dirname(__DIR__).'/'.$path; if(is_file($fullPath)) @unlink($fullPath); }
+            $error=$e instanceof RuntimeException?$e->getMessage():'The property could not be saved. Please check the database tables and try again.';
+            error_log('HomeBid property submission error: '.$e->getMessage());
+        }
+        $page='properties';
+    }
+}
 $q = hb_query($conn, "SELECT COUNT(*) total,SUM(is_approved=0) pending,SUM(is_approved=1) approved,SUM(status='Sold') sold,SUM(status='Rejected') rejected FROM properties WHERE user_id=?", [$userId]);$stats=hb_fetch_one($q)?:[];foreach(['total','pending','approved','sold','rejected'] as $k)$stats[$k]=(int)($stats[$k]??0);
 $q = hb_query($conn, 'SELECT p.*,(SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count FROM properties p WHERE p.user_id=? ORDER BY p.created_at DESC', [$userId]);$properties=hb_fetch_all($q);
 $q = hb_query($conn, 'SELECT a.*,p.title,p.location,(SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count FROM auctions a JOIN properties p ON p.id=a.property_id WHERE p.user_id=? ORDER BY a.created_at DESC', [$userId]);$auctions=hb_fetch_all($q);
@@ -368,7 +427,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                         approval.</span>
                 </div><button onclick="closeForm()" type="button"><?=ico('x')?></button>
             </div>
-            <form method="post">
+            <form method="post" enctype="multipart/form-data">
                 <div class="form-grid"><label class="full">Property title<input name="title" required maxlength="150"
                             placeholder="e.g. Bayside Family Residence"></label><label class="full">Property
                         address<input name="location" required maxlength="255"
@@ -376,7 +435,17 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                             required type="number" min=".01" step=".01"></label><label>Floor area (sq m)<input
                             name="floor_area" required type="number" min=".01" step=".01"></label><label>Starting bid
                         price<input name="price" required type="number" min=".01" step=".01"></label><label
-                        class="full">Property description<textarea name="description" required></textarea></label></div>
+                        class="full">Property description<textarea name="description" required></textarea></label>
+                    <label class="full">Main property thumbnail (required)
+                        <input type="file" name="thumbnail" id="thumbnailInput" accept="image/jpeg,image/png,image/webp" required>
+                        <small class="upload-help">JPG, PNG, or WEBP. Maximum 8 MB.</small>
+                        <div id="thumbnailPreview" class="image-preview-grid"></div>
+                    </label>
+                    <label class="full">Other property photos (up to 3)
+                        <input type="file" name="photos[]" id="photosInput" accept="image/jpeg,image/png,image/webp" multiple>
+                        <small class="upload-help">Select up to 3 additional photos. Maximum 8 MB each.</small>
+                        <div id="photosPreview" class="image-preview-grid"></div>
+                    </label></div>
                 <div class="form-notice"><?=ico('shield')?><p>Submitted properties remain unpublished until an
                         administrator approves them.</p>
                 </div>
@@ -401,6 +470,27 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
         document.getElementById('propertyModal').hidden = true;
         document.body.style.overflow = ''
     }
+    function previewImageFiles(input, preview, maxFiles) {
+        if (!input || !preview) return;
+        input.addEventListener('change', () => {
+            preview.innerHTML = '';
+            const files = Array.from(input.files || []);
+            if (files.length > maxFiles) { alert('You can select up to ' + maxFiles + ' image(s) here.'); input.value = ''; return; }
+            files.forEach(file => {
+                if (file.type !== 'image/jpeg' && file.type !== 'image/png' && file.type !== 'image/webp') return;
+                const reader = new FileReader();
+                reader.onload = event => {
+                    const item = document.createElement('div'); item.className = 'image-preview-item';
+                    const image = document.createElement('img'); image.src = event.target.result; image.alt = file.name;
+                    const caption = document.createElement('span'); caption.textContent = file.name;
+                    item.append(image, caption); preview.appendChild(item);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+    }
+    previewImageFiles(document.getElementById('thumbnailInput'), document.getElementById('thumbnailPreview'), 1);
+    previewImageFiles(document.getElementById('photosInput'), document.getElementById('photosPreview'), 3);
     const fs = document.getElementById('filterSearch'),
         st = document.getElementById('filterStatus');
 
