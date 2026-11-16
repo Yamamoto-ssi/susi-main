@@ -10,6 +10,7 @@ const modalDescription=document.getElementById("modalDescription");
 const form=document.getElementById("accountForm");
 const formMessage=document.getElementById("formMessage");
 const nameField=document.getElementById("nameField");
+const loginIdentifierLabel=document.getElementById("loginIdentifierLabel");
 const nameInput=form?.elements.namedItem("name");
 const passwordInput=form?.elements.namedItem("password");
 const authSwitch=document.getElementById("authSwitch");
@@ -22,6 +23,9 @@ function openModal(type){
  if(!backdrop||!form)return;
  const login=type==="login";
  form.dataset.authMode=login?"login":"signup";
+ const identifierInput=form.elements.namedItem("email");
+ if(identifierInput){identifierInput.type=login?"text":"email";identifierInput.placeholder=login?"Enter your email address or username":"you@example.com";identifierInput.autocomplete=login?"username":"email";}
+ if(loginIdentifierLabel)loginIdentifierLabel.firstChild.textContent=login?"Email address or username":"Email address";
  modalTitle.textContent=login?"Welcome back":"Create your account";
  modalDescription.textContent=login?"Log in to continue to your HomeBid account.":"Join HomeBid and discover your next home.";
  if(nameField){nameField.hidden=login;nameInput.required=!login;}
@@ -59,7 +63,7 @@ form?.addEventListener("submit",async event=>{
  const email=form.elements.namedItem("email").value.trim();
  const password=passwordInput.value;
  if(mode==="signup"&&!nameInput.value.trim()){formMessage.textContent="Please enter your full name.";nameInput.focus();return;}
- if(!email||!form.elements.namedItem("email").checkValidity()){formMessage.textContent="Please enter a valid email address.";form.elements.namedItem("email").focus();return;}
+ if(!email||(mode==="signup"&&!form.elements.namedItem("email").checkValidity())){formMessage.textContent=mode==="login"?"Please enter your email address or username.":"Please enter a valid email address.";form.elements.namedItem("email").focus();return;}
  if(!password||(mode==="signup"&&password.length<8)){formMessage.textContent=mode==="signup"?"Your password must be at least 8 characters.":"Please enter your password.";passwordInput.focus();return;}
  const submit=form.querySelector(".form-submit");
  if(submit)submit.disabled=true;
