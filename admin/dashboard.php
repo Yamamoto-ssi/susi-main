@@ -207,6 +207,24 @@ $titles=['dashboard'=>'Overview','sellers'=>'Seller accounts','properties'=>'Pro
                     </table>
                 </div>
             </article>
+            <?php elseif($page==='seller-applications'):?>
+            <div class="page-heading">
+                <div>
+                    <p class="eyebrow">IDENTITY & SELLER VERIFICATION</p>
+                    <h1>Seller applications</h1>
+                    <p>Review buyers who submitted identity documents to become sellers.</p>
+                </div><a class="btn primary" href="seller-applications.php">Open application review <?=ico('arrow',15)?></a>
+            </div>
+            <section class="grid stats">
+                <?php $sellerAppCounts=one($conn,"SELECT COUNT(*) total,COALESCE(SUM(status='pending'),0) pending,COALESCE(SUM(status='approved'),0) approved,COALESCE(SUM(status IN ('rejected','needs_revision')),0) attention FROM seller_applications"); ?>
+                <?php foreach([['Total applications',$sellerAppCounts['total'],'file',''],['Awaiting review',$sellerAppCounts['pending'],'clock','gold'],['Approved',$sellerAppCounts['approved'],'check','green'],['Needs attention',$sellerAppCounts['attention'],'users','blue']] as [$label,$value,$symbol,$tone]):?>
+                <article class="stat"><div class="stat-top"><span class="stat-icon <?=$tone?>"><?=ico($symbol)?></span></div><small><?=ah($label)?></small><strong><?=number_format((int)$value)?></strong></article>
+                <?php endforeach;?>
+            </section>
+            <article class="panel">
+                <div class="panel-head"><div><h2>Identity review queue</h2><p>Open the secure review workspace to view ID photos and applicant selfies.</p></div><?=pill((int)$sellerAppCounts['pending'].' pending')?></div>
+                <div class="panel-body"><p>Applications are reviewed separately from ordinary seller accounts. Approving an application changes the applicant's account from Buyer to Seller (Client).</p><a class="btn primary" href="seller-applications.php">Review seller applications <?=ico('arrow',15)?></a></div>
+            </article>
             <?php elseif($page==='properties'):?>
             <div class="page-heading">
                 <div>
