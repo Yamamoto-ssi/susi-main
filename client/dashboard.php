@@ -38,13 +38,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $regionName=trim($_POST['region_name']??'');
         $provinceName=trim($_POST['province_name']??'');
         $cityName=trim($_POST['city_name']??'');
+        $barangayName=trim($_POST['barangay_name']??'');
         $lotNumber=trim($_POST['lot_number']??'');
-        $l=implode(', ', array_filter([$lotNumber,$cityName,$provinceName,$regionName],fn($part)=>$part!==''));
+        $l=implode(', ', array_filter([$lotNumber,$barangayName,$cityName,$provinceName,$regionName],fn($part)=>$part!==''));
         $lot=(float)($_POST['lot_area']??0); $floor=(float)($_POST['floor_area']??0); $price=(float)($_POST['price']??0);
         $savedFiles=[];
         $dbTransaction=false;
         try {
-            if(!$t||!$d||!$regionName||!$cityName||!$lotNumber||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete all property fields, including region, city/municipality, and lot or house number.');
+            if(!$t||!$d||!$regionName||!$cityName||!$barangayName||!$lotNumber||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete all property fields, including region, city/municipality, barangay/village/subdivision, and lot or house number.');
             if(!isset($_FILES['thumbnail'])||$_FILES['thumbnail']['error']!==UPLOAD_ERR_OK) throw new RuntimeException('Please upload a main property thumbnail.');
             $extraFiles=[];
             if(isset($_FILES['photos'])&&is_array($_FILES['photos']['name'])) {
@@ -451,6 +452,9 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                     <label class="full">City / Municipality
                         <select id="propertyCity" name="city_code" disabled required><option value="">Select a province first</option></select>
                         <input type="hidden" name="city_name" id="cityName">
+                    </label>
+                    <label class="full">Barangay / Village / Subdivision
+                        <input name="barangay_name" required maxlength="150" placeholder="Enter barangay, village, or subdivision">
                     </label>
                     <label class="full">Lot number / House number
                         <input name="lot_number" required maxlength="100" placeholder="e.g. Lot 12, Block 5 or House No. 24">
