@@ -36,16 +36,16 @@ $allowed=['home','browse','my-bids','activity'];
 if(!in_array($tab,$allowed,true))$tab='home';
 $search=trim((string)($_GET['q']??''));
 $stats=buyer_one($conn,"SELECT
- (SELECT COUNT(*) FROM auctions a JOIN properties p ON p.id=a.property_id WHERE p.is_approved=1 AND a.review_status='approved' AND p.status='Auction' AND a.status='active') active_auctions,
- (SELECT COUNT(*) FROM properties WHERE is_approved=1 AND status='Available') available_properties,
+ (SELECT COUNT(*) FROM auctions a JOIN properties p ON p.id=a.property_id WHERE p.is_approved=1 AND p.review_status='approved' AND a.review_status='approved' AND p.status='Auction' AND a.status='active') active_auctions,
+ (SELECT COUNT(*) FROM properties WHERE is_approved=1 AND review_status='approved' AND status='Available') available_properties,
  (SELECT COUNT(*) FROM bids WHERE user_id=?) bids_placed,
  (SELECT COALESCE(MAX(bid_amount),0) FROM bids WHERE user_id=?) highest_bid",[$userId,$userId]);
 $auctions=buyer_rows($conn,"SELECT a.id auction_id,a.status auction_status,a.starting_bid,a.current_bid,a.start_time,a.end_time,a.property_id,
  p.title,p.location,p.description,p.lot_area,p.floor_area,p.price,p.image_path,
  (SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count
  FROM properties p
- LEFT JOIN auctions a ON a.property_id=p.id
- WHERE p.is_approved=1
+ LEFT JOIN auctions a ON a.id=(SELECT a2.id FROM auctions a2 WHERE a2.property_id=p.id ORDER BY a2.id DESC LIMIT 1)
+ WHERE p.is_approved=1 AND p.review_status='approved' AND p.review_status='approved'
  AND ((p.status='Available') OR (p.status='Auction' AND a.review_status='approved' AND a.status IN ('active','upcoming')))
  AND (p.title LIKE ? OR p.location LIKE ? OR p.description LIKE ?)
  ORDER BY CASE WHEN a.status='active' THEN 0 WHEN a.status='upcoming' THEN 1 ELSE 2 END,
@@ -53,7 +53,7 @@ $auctions=buyer_rows($conn,"SELECT a.id auction_id,a.status auction_status,a.sta
  ['%'.$search.'%','%'.$search.'%','%'.$search.'%']);
 $myBids=buyer_rows($conn,"SELECT b.id,b.bid_amount,b.status bid_status,b.created_at,p.title,p.location,a.status auction_status,a.current_bid,a.end_time,p.image_path
  FROM bids b JOIN properties p ON p.id=b.property_id
- LEFT JOIN auctions a ON a.property_id=p.id
+ LEFT JOIN auctions a ON a.id=(SELECT a2.id FROM auctions a2 WHERE a2.property_id=p.id ORDER BY a2.id DESC LIMIT 1)
  WHERE b.user_id=? ORDER BY b.created_at DESC LIMIT 100",[$userId]);
 $recentBids=array_slice($myBids,0,4);
 $activityLog=buyer_rows($conn,"SELECT activity,entity_type,record_id,created_at FROM (
