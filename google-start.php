@@ -11,6 +11,9 @@ if ($clientId === '') {
     exit('Google Sign-In is not configured. Set GOOGLE_CLIENT_ID in your server environment.');
 }
 
+$intent = (string)($_GET['intent'] ?? 'login');
+if (!in_array($intent, ['login','signup'], true)) $intent = 'login';
+$_SESSION['google_auth_intent'] = $intent;
 $state = bin2hex(random_bytes(32));
 $_SESSION['google_oauth_state'] = $state;
 $_SESSION['google_oauth_started'] = time();
