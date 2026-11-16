@@ -35,6 +35,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $page = 'properties';
     } else {
         $t=trim($_POST['title']??''); $d=trim($_POST['description']??'');
+        $category=trim($_POST['category']??'');
+        $rawTags=trim($_POST['tags']??'');
+        $tags=array_values(array_unique(array_filter(array_map(function($tag){return mb_substr(trim($tag),0,40);},explode(',',$rawTags)),fn($tag)=>$tag!=='')));
+        if(count($tags)>10) $tags=array_slice($tags,0,10);
         $regionName=trim($_POST['region_name']??'');
         $provinceName=trim($_POST['province_name']??'');
         $cityName=trim($_POST['city_name']??'');
@@ -45,7 +49,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $savedFiles=[];
         $dbTransaction=false;
         try {
-            if(!$t||!$d||!$regionName||!$cityName||!$barangayName||!$lotNumber||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete all property fields, including region, city/municipality, barangay/village/subdivision, and lot or house number.');
+            $allowedCategories=['House and Lot','Condominium','Townhouse','Residential Lot','Commercial Property','Apartment','Industrial Property','Other'];
+            if(!$t||!$d||!in_array($category,$allowedCategories,true)||!$regionName||!$cityName||!$barangayName||!$lotNumber||$lot<=0||$floor<=0||$price<=0) throw new RuntimeException('Complete all property fields and choose a valid property category.');
             if(!isset($_FILES['thumbnail'])||$_FILES['thumbnail']['error']!==UPLOAD_ERR_OK) throw new RuntimeException('Please upload a main property thumbnail.');
             $extraFiles=[];
             if(isset($_FILES['photos'])&&is_array($_FILES['photos']['name'])) {
@@ -59,8 +64,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             foreach($extraFiles as $file) $savedFiles[]=hb_store_property_image($file);
             mysqli_begin_transaction($conn);
             $dbTransaction=true;
-            hb_query($conn,"INSERT INTO properties(user_id,title,description,location,region,province,city,barangay,lot_number,lot_area,floor_area,price,status,is_approved,image_path) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,'Available',0,?)",[$userId,$t,$d,$l,$regionName,$provinceName!==''?$provinceName:null,$cityName,$barangayName,$lotNumber,$lot,$floor,$price,$thumbnailPath]);
+            hb_query($conn,"INSERT INTO properties(user_id,title,description,category,location,region,province,city,barangay,lot_number,lot_area,floor_area,price,status,is_approved,image_path) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'Available',0,?)",[$userId,$t,$d,$category,$l,$regionName,$provinceName!==''?$provinceName:null,$cityName,$barangayName,$lotNumber,$lot,$floor,$price,$thumbnailPath]);
             $propertyId=mysqli_insert_id($conn);
+            foreach($tags as $tag) hb_query($conn,'INSERT INTO property_tags(property_id,tag_name) VALUES(?,?)',[$propertyId,$tag]);
             for($i=1;$i<count($savedFiles);$i++) hb_query($conn,'INSERT INTO property_images(property_id,image_path) VALUES(?,?)',[$propertyId,$savedFiles[$i]]);
             mysqli_commit($conn);
             $dbTransaction=false;
@@ -441,7 +447,20 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
             </div>
             <form method="post" enctype="multipart/form-data">
                 <div class="form-grid"><label class="full">Property title<input name="title" required maxlength="150"
-                            placeholder="e.g. Bayside Family Residence"></label><label class="full">Region
+                            placeholder="e.g. Bayside Family Residence"></label>
+                    <label>Property category
+                        <select name="category" required>
+                            <option value="">Select category</option>
+                            <option>House and Lot</option><option>Condominium</option><option>Townhouse</option>
+                            <option>Residential Lot</option><option>Commercial Property</option><option>Apartment</option>
+                            <option>Industrial Property</option><option>Other</option>
+                        </select>
+                    </label>
+                    <label class="full">Tags
+                        <input name="tags" maxlength="500" placeholder="e.g. furnished, near-school, gated-community">
+                        <small class="upload-help">Separate tags with commas. Add up to 10 tags to help buyers find your property.</small>
+                    </label>
+                    <label class="full">Region
                         <select id="propertyRegion" name="region_code" required><option value="">Loading regions...</option></select>
                         <input type="hidden" name="region_name" id="regionName">
                     </label>
