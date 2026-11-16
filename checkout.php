@@ -92,6 +92,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos(strtolower($_SERVER['CONTENT
             $paymentUpdate->execute();
             $paymentUpdate->close();
 
+            if ($payment['reservation_id'] === null && $payment['auction_id'] !== null && $callbackStatus === 'PAID') {
+                $propertyUpdate = $conn->prepare("UPDATE properties SET status = 'Sold' WHERE id = ? AND status IN ('Auction', 'Available')");
+                $propertyUpdate->bind_param('i', $payment['property_id']);
+                $propertyUpdate->execute();
+                $propertyUpdate->close();
+            }
+
             if ($payment['reservation_id'] !== null) {
                 if ($callbackStatus === 'PAID') {
                     $reservationUpdate = $conn->prepare("UPDATE reservations SET status = 'Approved' WHERE id = ? AND status IN ('Pending', 'Cancelled')");
@@ -125,8 +132,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos(strtolower($_SERVER['CONTENT
 }
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
+    header('Location: index.php?login=required');
     exit;
+}
+if (($_SESSION['role'] ?? '') !== 'Buyer') {
+    showCheckoutError('Only buyer accounts can make property reservations or auction payments.', 403);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -184,7 +194,7 @@ try {
     $conn->begin_transaction();
 
     if ($paymentType === 'reservation') {
-        $propertyStatement = $conn->prepare("SELECT id, title FROM properties WHERE id = ? AND status = 'Available' FOR UPDATE");
+        $propertyStatement = $conn->prepare("SELECT id, title FROM properties WHERE id = ? AND status = 'Available' AND is_approved = 1 AND review_status = 'approved' FOR UPDATE");
         $propertyStatement->bind_param('i', $propertyId);
         $propertyStatement->execute();
         $property = $propertyStatement->get_result()->fetch_assoc();
@@ -248,6 +258,16 @@ try {
         }
 
         $reservationId = null;
+        $paidCheckStatement = $conn->prepare("SELECT id FROM checkout_payments WHERE payment_type = 'auction' AND auction_id = ? AND status = 'paid' LIMIT 1 FOR UPDATE");
+        $paidCheckStatement->bind_param('i', $auctionId);
+        $paidCheckStatement->execute();
+        $alreadyPaid = $paidCheckStatement->get_result()->fetch_assoc();
+        $paidCheckStatement->close();
+        if ($alreadyPaid) {
+            $conn->rollback();
+            showCheckoutError('This auction has already been paid. No additional payment is needed.', 409);
+        }
+
         $staleCreatingStatement = $conn->prepare("UPDATE checkout_payments SET status = 'failed' WHERE payment_type = 'auction' AND auction_id = ? AND status = 'creating' AND created_at <= DATE_SUB(NOW(), INTERVAL 10 MINUTE)");
         $staleCreatingStatement->bind_param('i', $auctionId);
         $staleCreatingStatement->execute();
