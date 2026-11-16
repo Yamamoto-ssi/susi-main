@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__.'/../config/auth.php';
 $userId=require_roles(['Buyer']);
 require_once __DIR__.'/../config/db.php';
-
+//aasafsadfsadf
 function bh($v):string{return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
 function buyer_money($v):string{return '₱'.number_format((float)$v,2);}
 function buyer_rows(mysqli $conn,string $sql,array $args=[]):array{$s = hb_query($conn, $sql, $args);return hb_fetch_all($s);}
