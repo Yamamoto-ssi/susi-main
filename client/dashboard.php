@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/../config/auth.php'; $userId=require_roles(['Buyer','Client','Staff','Administrator']); require_once __DIR__.'/../config/db.php';
+$approvedSeller=hb_fetch_one(hb_query($conn,"SELECT id FROM seller_applications WHERE user_id=? AND status='approved' ORDER BY reviewed_at DESC LIMIT 1",[$userId]));
 $page=$_GET['page']??'overview'; $pages=['overview','properties','approvals','auctions','live','results','notifications']; if(!in_array($page,$pages,true))$page='overview'; $notice=$error='';
 function hb_store_property_image(array $file): string {
     if (!isset($file['error']) || $file['error'] !== UPLOAD_ERR_OK) throw new RuntimeException('Please choose valid image files.');
@@ -165,7 +166,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                 <div class="breadcrumbs"><span>Seller
                         Portal</span><?=ico('chevron',13)?><strong><?=e($titles[$page])?></strong></div>
                 <div class="header-actions"><label class="search"><?=ico('search')?><input id="globalSearch"
-                            placeholder="Search properties, auctions..."><kbd>⌘ K</kbd></label><a class="bell"
+                            placeholder="Search properties, auctions..."><kbd>⌘ K</kbd></label><?php if($approvedSeller && ($_SESSION['role']??'')==='Client'):?><form method="post" action="../config/switch_account_mode.php" style="display:inline-flex;margin:0"><input type="hidden" name="csrf_token" value="<?=h(csrf_token())?>"><input type="hidden" name="mode" value="Buyer"><button type="submit" class="primary small-primary" style="background:#fff8e8;color:#765316;border:1px solid #d6a94c">Switch to Buyer</button></form><?php endif;?><a class="bell"
                         href="?page=notifications"><?=ico('bell')?><span></span></a><button
                         class="primary small-primary" onclick="openAddChoice()"><?=ico('plus')?> <span>Add
                             Property</span></button></div>
