@@ -51,6 +51,7 @@ $titles=['dashboard'=>'Overview','sellers'=>'Seller accounts','properties'=>'Pro
             </div>
             <div class="nav-group">
                 <div class="nav-caption">System</div>
+                <a class="nav-link" href="../receipt/management.php"><?=ico('file')?><span>Paid receipts</span></a>
                 <?php foreach([['audit','file','Audit log'],['staff','users','Staff & roles'],['reports','chart','Reports'],['settings','settings','System settings']] as [$id,$ic,$label]):?><a
                     class="nav-link <?=$page===$id?'active':''?>"
                     href="?page=<?=$id?>"><?=ico($ic)?><span><?=ah($label)?></span></a><?php endforeach;?>
