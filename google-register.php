@@ -64,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['user_id'] = (int)$account['id'];
                     $_SESSION['role'] = (string)$account['role'];
                     $_SESSION['username'] = (string)$account['username'];
+                    hb_query($conn, 'INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)', [(int)$account['id'],'Signed in with Google','user',(int)$account['id'],$_SERVER['REMOTE_ADDR']??null]);
                     header('Location: ' . ((string)$account['role'] === 'Client' ? 'client/dashboard.php' : 'buyer/dashboard.php'));
                     exit;
                 }
@@ -80,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         [$username, (string)$googleRegistration['email'], (string)$googleRegistration['google_id'], $hashedPassword, $role]
                     );
                     $userId = (int)mysqli_insert_id($conn);
+                    hb_query($conn, 'INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)', [$userId,'Created an account with Google','user',$userId,$_SERVER['REMOTE_ADDR']??null]);
                     unset($_SESSION['google_registration']);
                     session_regenerate_id(true);
                     $_SESSION['user_id'] = $userId;
