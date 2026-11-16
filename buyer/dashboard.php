@@ -36,7 +36,7 @@ $allowed=['home','browse','my-bids'];
 if(!in_array($tab,$allowed,true))$tab='home';
 $search=trim((string)($_GET['q']??''));
 $stats=buyer_one($conn,"SELECT
- (SELECT COUNT(*) FROM auctions a JOIN properties p ON p.id=a.property_id WHERE p.is_approved=1 AND p.status='Available' AND a.status='active') active_auctions,
+ (SELECT COUNT(*) FROM auctions a JOIN properties p ON p.id=a.property_id WHERE p.is_approved=1 AND p.status='Auction' AND a.status='active') active_auctions,
  (SELECT COUNT(*) FROM properties WHERE is_approved=1 AND status='Available') available_properties,
  (SELECT COUNT(*) FROM bids WHERE user_id=?) bids_placed,
  (SELECT COALESCE(MAX(bid_amount),0) FROM bids WHERE user_id=?) highest_bid",[$userId,$userId]);
@@ -44,7 +44,7 @@ $auctions=buyer_rows($conn,"SELECT a.id auction_id,a.status auction_status,a.sta
  p.title,p.location,p.description,p.lot_area,p.floor_area,p.price,p.image_path,
  (SELECT COUNT(*) FROM bids b WHERE b.property_id=p.id) bid_count
  FROM auctions a JOIN properties p ON p.id=a.property_id
- WHERE p.is_approved=1 AND p.status='Available' AND a.status IN ('active','upcoming')
+ WHERE p.is_approved=1 AND p.status='Auction' AND a.status IN ('active','upcoming')
  AND (p.title LIKE ? OR p.location LIKE ? OR p.description LIKE ?)
  ORDER BY CASE WHEN a.status='active' THEN 0 ELSE 1 END,a.end_time ASC LIMIT 12",
  ['%'.$search.'%','%'.$search.'%','%'.$search.'%']);
