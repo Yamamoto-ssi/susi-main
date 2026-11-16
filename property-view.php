@@ -88,15 +88,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place
                 throw new RuntimeException('This property is not currently listed for auction.');
             }
             mysqli_begin_transaction($conn);
-            $auctionResult = hb_query($conn, "SELECT a.*,p.user_id AS seller_id,p.title
+            $auctionId = (int)$property['auction_id'];
+
+            // Keep auction status synchronized with database time before accepting any bid.
+            hb_query($conn, "UPDATE auctions
+                SET status='active'
+                WHERE id=? AND status='upcoming'
+                  AND review_status='approved'
+                  AND start_time<=NOW() AND end_time>NOW()", [$auctionId]);
+            hb_query($conn, "UPDATE auctions
+                SET status='ended'
+                WHERE id=? AND status IN ('upcoming','active')
+                  AND end_time<=NOW()", [$auctionId]);
+
+            $auctionResult = hb_query($conn, "SELECT a.*,p.user_id AS seller_id,p.title,
+                    (a.start_time<=NOW()) AS has_started,
+                    (a.end_time>NOW()) AS has_not_ended
                 FROM auctions a JOIN properties p ON p.id=a.property_id
                 WHERE a.id=? AND a.property_id=? AND p.is_approved=1 AND p.review_status='approved'
-                  AND a.review_status='approved' FOR UPDATE", [(int)$property['auction_id'], $propertyId]);
+                  AND a.review_status='approved' FOR UPDATE", [$auctionId, $propertyId]);
             $auction = hb_fetch_one($auctionResult);
             if (!$auction) throw new RuntimeException('This auction is no longer available.');
-            $now = time();
-            if ($auction['status'] !== 'active' || strtotime($auction['start_time']) > $now || strtotime($auction['end_time']) <= $now) {
-                throw new RuntimeException('Bidding is not open. Please check the auction start and end times.');
+            if ($auction['status'] !== 'active' || !(int)$auction['has_started'] || !(int)$auction['has_not_ended']) {
+                throw new RuntimeException('Bidding has closed or is not open yet. You can no longer submit a bid for this auction.');
             }
             $minimumBid = max((float)$auction['starting_bid'], (float)$auction['current_bid'] + 1);
             if ($bidAmount === false || $bidAmount <= (float)$auction['current_bid'] || $bidAmount < (float)$auction['starting_bid']) {
