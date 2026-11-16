@@ -254,6 +254,14 @@ function homebid_money($amount): string {
             <form id="accountForm" novalidate>
                 <label id="nameField" hidden>Full name<input type="text" name="name" placeholder="Your full name"
                         autocomplete="name"></label>
+                <label id="usernameField" hidden>Username<input type="text" name="username" maxlength="50" placeholder="Choose a username"
+                        autocomplete="username"></label>
+                <label id="roleField" hidden>Account type
+                    <select name="role">
+                        <option value="Buyer">Buyer</option>
+                        <option value="Client">Seller</option>
+                    </select>
+                </label>
                 <label id="loginIdentifierLabel">Email address<input type="text" name="email" placeholder="you@example.com" autocomplete="username"
                         required></label>
                 <label>Password<input type="password" name="password" placeholder="Enter your password"
@@ -271,7 +279,7 @@ function homebid_money($amount): string {
         </section>
     </div>
     <div class="toast" id="toast" role="status"></div>
-    <script src="script.js?v=20261117-1"></script>
+    <script src="script.js?v=20261117-2"></script>
 </body>
 
 </html>
