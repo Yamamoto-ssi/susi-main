@@ -33,7 +33,7 @@ if ($receivedState === '' || $expectedState === '' || !hash_equals($expectedStat
 
 $code = trim((string)($_GET['code'] ?? ''));
 $clientId = getenv('GOOGLE_CLIENT_ID') ?: '44077547718-4nesakkabijeqadjsse1fq82knq0rm1n.apps.googleusercontent.com';
-$clientSecret = getenv('GOOGLE_CLIENT_SECRET') ?: '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';
+$clientSecret = getenv('GOOGLE_CLIENT_SECRET') ?: '';
 $redirectUri = getenv('GOOGLE_REDIRECT_URI') ?: 'http://localhost/susi/google-callback.php';
 
 if ($code === '') {
@@ -146,6 +146,7 @@ try {
 
         $_SESSION['google_registration'] = [
             'google_id' => $googleId,
+            'intent' => (string)($_SESSION['google_auth_intent'] ?? 'login'),
             'email' => $email,
             'suggested_username' => $suggestedUsername !== '' ? $suggestedUsername : 'Google User',
             'started_at' => time(),
