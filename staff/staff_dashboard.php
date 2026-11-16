@@ -21,7 +21,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 $counts=hb_fetch_one(hb_query($conn, "SELECT COUNT(*) total,COALESCE(SUM(is_approved=0),0) pending,COALESCE(SUM(is_approved=1),0) approved,COALESCE(SUM(status='Sold'),0) sold FROM properties"));
 $auctionCounts=hb_fetch_one(hb_query($conn, "SELECT COUNT(*) total,COALESCE(SUM(status='active'),0) active FROM auctions"));
 $bidCount=(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM bids'));
-$pending=hb_fetch_all(hb_query($conn, 'SELECT p.*,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 AND p.review_status IN ('pending','admin_approval') ORDER BY p.created_at ASC'));
+$pending=hb_fetch_all(hb_query($conn, "SELECT p.*,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 AND p.review_status IN ('pending','admin_approval') ORDER BY p.created_at ASC"));
 $recent=hb_fetch_all(hb_query($conn, 'SELECT p.*,u.username FROM properties p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 12'));
 $auctions=hb_fetch_all(hb_query($conn, 'SELECT a.*,p.title FROM auctions a JOIN properties p ON p.id=a.property_id ORDER BY a.created_at DESC LIMIT 12'));
 $logs=hb_fetch_all(hb_query($conn, 'SELECT l.*,u.username FROM activity_logs l LEFT JOIN users u ON u.id=l.user_id ORDER BY l.created_at DESC LIMIT 12'));
