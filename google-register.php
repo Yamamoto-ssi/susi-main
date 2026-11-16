@@ -29,10 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = (string)($_POST['password'] ?? '');
     $role = (string)($_POST['role'] ?? 'Buyer');
 
-    if ($username === '') {
-        $error = 'Please enter a username.';
-    } elseif (function_exists('mb_strlen') ? mb_strlen($username) > 50 : strlen($username) > 50) {
-        $error = 'Your username must be 50 characters or fewer.';
+    if (!preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
+        $error = 'Username must be 3–50 characters and use only letters, numbers, dots, underscores, or hyphens.';
     } elseif (!in_array($role, ['Buyer','Client'], true)) {
         $error = 'Please choose Buyer or Seller as your account type.';
     } elseif (strlen($password) < 8) {
