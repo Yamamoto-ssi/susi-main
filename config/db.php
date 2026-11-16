@@ -38,7 +38,13 @@ function hb_fetch_all(mysqli_result|bool $result): array {
     return $result instanceof mysqli_result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
 }
 function hb_fetch_one(mysqli_result|bool $result): array|false {
-    return $result instanceof mysqli_result ? mysqli_fetch_assoc($result) : false;
+    if (!$result instanceof mysqli_result) {
+        return false;
+    }
+
+    $row = mysqli_fetch_assoc($result);
+
+    return is_array($row) ? $row : false;
 }
 function hb_fetch_value(mysqli_result|bool $result, int $column = 0): mixed {
     if (!$result instanceof mysqli_result) return false;
