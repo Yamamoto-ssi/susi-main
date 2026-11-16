@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__.'/../config/auth.php';
 $adminId=require_roles(['Administrator']);
 require_once __DIR__.'/../config/db.php';
-$page=$_GET['page']??'dashboard';$allowed=['dashboard','sellers','properties','auctions','activity','audit','notifications','staff','reports','settings'];if(!in_array($page,$allowed,true))$page='dashboard';
+$page=$_GET['page']??'dashboard';$allowed=['dashboard','sellers','seller-applications','properties','auctions','activity','audit','notifications','staff','reports','settings'];if(!in_array($page,$allowed,true))$page='dashboard';
 $name=(string)($_SESSION['username']??'Administrator');$initials=strtoupper(substr(preg_replace('/[^a-z]/i','',$name)?:'AD',0,2));$notice='';$error='';$q=trim((string)($_GET['q']??''));
 function ah($v):string{return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
 function money($v):string{return '₱'.number_format((float)$v,2);}
@@ -47,7 +47,7 @@ $titles=['dashboard'=>'Overview','sellers'=>'Seller accounts','seller-applicatio
             <div class="nav-group">
                 <div class="nav-caption">Workspace</div><?php foreach($nav as [$id,$ic,$label,$count]):?><a
                     class="nav-link <?=$page===$id?'active':''?>"
-                    href="?page=<?=$id?>"><?=ico($ic)?><span><?=ah($label)?></span><?php if($count!==''):?><em><?=ah($count)?></em><?php endif;?></a><?php endforeach;?>
+                    href="<?=$id==='seller-applications'?'seller-applications.php':'?page='.$id?>"><?=ico($ic)?><span><?=ah($label)?></span><?php if($count!==''):?><em><?=ah($count)?></em><?php endif;?></a><?php endforeach;?>
             </div>
             <div class="nav-group">
                 <div class="nav-caption">System</div>
