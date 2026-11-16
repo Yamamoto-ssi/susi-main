@@ -48,7 +48,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $q=hb_query($conn,"SELECT id FROM auctions WHERE property_id=? AND status IN ('upcoming','active') LIMIT 1",[$propertyId]);
             if(hb_fetch_one($q)) throw new RuntimeException('This property already has an upcoming or active auction.');
             mysqli_begin_transaction($conn);
-            hb_query($conn,"INSERT INTO auctions(property_id,starting_bid,current_bid,highest_bidder_id,start_time,end_time,status) VALUES(?,?,?,NULL,?,?,'upcoming')",[$propertyId,$startingBid,$startingBid,$startDate->format('Y-m-d H:i:s'),$endDate->format('Y-m-d H:i:s')]);
+            hb_query($conn,"INSERT INTO auctions(property_id,starting_bid,current_bid,highest_bidder_id,start_time,end_time,status,review_status) VALUES(?,?,?,NULL,?,?,'upcoming','pending')",[$propertyId,$startingBid,$startingBid,$startDate->format('Y-m-d H:i:s'),$endDate->format('Y-m-d H:i:s')]);
             hb_query($conn,"UPDATE properties SET status='Auction' WHERE id=? AND user_id=?",[$propertyId,$userId]);
             mysqli_commit($conn);
             $notice='Auction created successfully and scheduled.';
@@ -98,7 +98,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $propertyId=mysqli_insert_id($conn);
             foreach($tags as $tag) hb_query($conn,'INSERT INTO property_tags(property_id,tag_name) VALUES(?,?)',[$propertyId,$tag]);
             for($i=1;$i<count($savedFiles);$i++) hb_query($conn,'INSERT INTO property_images(property_id,image_path) VALUES(?,?)',[$propertyId,$savedFiles[$i]]);
-            if($submissionType==='auction'){hb_query($conn,"INSERT INTO auctions(property_id,starting_bid,current_bid,highest_bidder_id,start_time,end_time,status) VALUES(?,?,?,NULL,?,?,'upcoming')",[$propertyId,$auctionStartingBid,$auctionStartingBid,$auctionStartDate->format('Y-m-d H:i:s'),$auctionEndDate->format('Y-m-d H:i:s')]);hb_query($conn,"UPDATE properties SET status='Auction' WHERE id=?",[$propertyId]);}
+            if($submissionType==='auction'){hb_query($conn,"INSERT INTO auctions(property_id,starting_bid,current_bid,highest_bidder_id,start_time,end_time,status,review_status) VALUES(?,?,?,NULL,?,?,'upcoming','pending')",[$propertyId,$auctionStartingBid,$auctionStartingBid,$auctionStartDate->format('Y-m-d H:i:s'),$auctionEndDate->format('Y-m-d H:i:s')]);hb_query($conn,"UPDATE properties SET status='Auction' WHERE id=?",[$propertyId]);}
             mysqli_commit($conn);
             $dbTransaction=false;
             $notice=$submissionType==='auction'?'Auction property and photos submitted. Bidding remains unavailable until approval.':'Property and photos submitted. Awaiting review.';
