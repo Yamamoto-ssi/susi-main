@@ -34,7 +34,7 @@ $approvedSeller=buyer_one($conn,"SELECT id FROM seller_applications WHERE user_i
 $username=$account['username']??'Buyer';
 $initials=strtoupper(substr(preg_replace('/[^a-z0-9]/i','',$username)?:'HB',0,2));
 $tab=$_GET['tab']??'home';
-$allowed=['home','browse','my-bids','activity'];
+$allowed=['home','browse','my-bids','notifications','activity'];
 if(!in_array($tab,$allowed,true))$tab='home';
 $search=trim((string)($_GET['q']??''));
 $stats=buyer_one($conn,"SELECT
@@ -83,7 +83,8 @@ $activityLog=buyer_rows($conn,"SELECT activity,entity_type,record_id,created_at 
  FROM notifications n WHERE n.user_id=?
 ) buyer_activity ORDER BY created_at DESC LIMIT 40",
  [$userId,$userId,$userId,$userId,$userId,$userId,$userId,$userId]);
-$tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids'=>'My bidding activity','activity'=>'Activity log'];
+$notifications=buyer_rows($conn,'SELECT id,title,message,is_read,related_entity,related_id,created_at FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 50',[$userId]);
+$tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids'=>'My bidding activity','notifications'=>'Notifications','activity'=>'Activity log'];
 ?>
 <!doctype html>
 <html lang="en">
@@ -113,7 +114,7 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                 class="<?=$tab==='browse'?'active':''?>" href="?tab=browse"><?=buyer_icon('search')?><span>Browse
                     properties</span><b><?=number_format((int)$stats['available_properties'])?></b></a><a
                 class="<?=$tab==='my-bids'?'active':''?>" href="?tab=my-bids"><?=buyer_icon('gavel')?><span>My
-                    bids</span><b><?=number_format((int)$stats['bids_placed'])?></b></a><a class="<?=$tab==='activity'?'active':''?>" href="?tab=activity"><?=buyer_icon('clock')?><span>Activity log</span></a><a href="profile.php"><?=buyer_icon('home')?><span>Profile &amp; settings</span></a><a href="seller-application.php"><?=buyer_icon('building')?><span>Become a seller</span></a><a
+                    bids</span><b><?=number_format((int)$stats['bids_placed'])?></b></a><a class="<?=$tab==='notifications'?'active':''?>" href="?tab=notifications"><?=buyer_icon('bell')?><span>Notifications</span><?php $unreadCount=count(array_filter($notifications,fn($n)=>(int)$n['is_read']===0));if($unreadCount):?><b><?=number_format($unreadCount)?></b><?php endif;?></a><a class="<?=$tab==='activity'?'active':''?>" href="?tab=activity"><?=buyer_icon('clock')?><span>Activity log</span></a><a href="profile.php"><?=buyer_icon('home')?><span>Profile &amp; settings</span></a><a href="seller-application.php"><?=buyer_icon('building')?><span>Become a seller</span></a><a
                 href="../index.php#contact"><?=buyer_icon('bell')?><span>Help &amp; support</span></a></nav>
         <div class="side-bottom">
             <div class="help-card"><span>Need a hand?</span>
@@ -281,6 +282,23 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                             </tr><?php endforeach;?></tbody>
                     </table>
                 </div><?php endif;?>
+            </article>
+            <?php elseif($tab==='notifications'):?>
+            <section class="page-intro"><span class="eyebrow">YOUR HOMEBID UPDATES</span>
+                <h1>Notifications</h1>
+                <p>Get updates when another buyer outbids you or when your account activity changes.</p>
+            </section>
+            <article class="activity-panel full">
+                <div class="panel-heading"><div><h2>Recent notifications</h2><p><?=count($notifications)?> latest updates</p></div></div>
+                <?php if(!$notifications):?><div class="empty-state">You're all caught up. Bid updates will appear here.</div><?php else:?>
+                    <div class="timeline"><?php foreach($notifications as $notification):?>
+                        <div class="timeline-item">
+                            <span class="timeline-dot"><?=buyer_icon('bell',16)?></span>
+                            <div class="timeline-copy"><b><?=bh($notification['title'])?></b><small><?=bh($notification['message'])?></small></div>
+                            <time><?=date('M j, Y · g:i a',strtotime($notification['created_at']))?><?=empty($notification['is_read'])?' · New':''?></time>
+                        </div>
+                    <?php endforeach;?></div>
+                <?php endif;?>
             </article>
             <?php elseif($tab==='activity'):?>
             <section class="page-intro"><span class="eyebrow">YOUR HOMEBID HISTORY</span>
