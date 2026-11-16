@@ -46,8 +46,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!password_verify($current, (string)$user['password'])) throw new RuntimeException('Your current password is incorrect.');
             if (strlen($new) < 8) throw new RuntimeException('Your new password must contain at least 8 characters.');
             if ($new !== $confirm) throw new RuntimeException('The new passwords do not match.');
-            hb_query($conn,'UPDATE users SET password=? WHERE id=?',[password_hash($new,PASSWORD_DEFAULT),$userId]);
-            $notice = 'Your password has been changed.';
+            if (!filter_var((string)$user['email'], FILTER_VALIDATE_EMAIL)) throw new RuntimeException('Your account email address is invalid. Update it before changing your password.');
+
+            $token = bin2hex(random_bytes(32));
+            $tokenHash = hash('sha256', $token);
+            $newPasswordHash = password_hash($new, PASSWORD_DEFAULT);
+            hb_query($conn, 'DELETE FROM password_change_requests WHERE user_id=? OR expires_at < NOW()', [$userId]);
+            hb_query($conn, 'INSERT INTO password_change_requests (user_id,token_hash,new_password_hash,expires_at) VALUES (?,?,?,DATE_ADD(NOW(), INTERVAL 15 MINUTE))', [$userId,$tokenHash,$newPasswordHash]);
+
+            $baseUrl = rtrim((string)(getenv('APP_BASE_URL') ?: 'http://localhost/susi'), '/');
+            $verifyUrl = $baseUrl . '/password-change-verify.php?token=' . urlencode($token);
+            $smtpHost = (string)getenv('SMTP_HOST');
+            $smtpUser = (string)getenv('SMTP_USERNAME');
+            $smtpPass = (string)getenv('SMTP_PASSWORD');
+            $smtpPort = (int)(getenv('SMTP_PORT') ?: 587);
+            $smtpSecure = strtolower((string)(getenv('SMTP_ENCRYPTION') ?: 'tls'));
+            $fromEmail = (string)(getenv('SMTP_FROM_EMAIL') ?: $smtpUser);
+            $fromName = (string)(getenv('SMTP_FROM_NAME') ?: 'HomeBid');
+
+            if ($smtpHost === '' || $smtpUser === '' || $smtpPass === '' || $fromEmail === '') {
+                hb_query($conn, 'DELETE FROM password_change_requests WHERE user_id=?', [$userId]);
+                throw new RuntimeException('Email verification is not configured yet. Please contact the administrator.');
+            }
+
+            try {
+                require_once dirname(__DIR__) . '/vendor/autoload.php';
+                $mailer = new PHPMailer\\PHPMailer\\PHPMailer(true);
+                $mailer->isSMTP();
+                $mailer->Host = $smtpHost;
+                $mailer->SMTPAuth = true;
+                $mailer->Username = $smtpUser;
+                $mailer->Password = $smtpPass;
+                $mailer->Port = $smtpPort;
+                if ($smtpSecure === 'ssl') $mailer->SMTPSecure = PHPMailer\\PHPMailer\\PHPMailer::ENCRYPTION_SMTPS;
+                else $mailer->SMTPSecure = PHPMailer\\PHPMailer\\PHPMailer::ENCRYPTION_STARTTLS;
+                $mailer->CharSet = 'UTF-8';
+                $mailer->setFrom($fromEmail, $fromName);
+                $mailer->addAddress((string)$user['email']);
+                $mailer->isHTML(true);
+                $mailer->Subject = 'Verify your HomeBid password change';
+                $safeUrl = htmlspecialchars($verifyUrl, ENT_QUOTES, 'UTF-8');
+                $mailer->Body = '<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:28px;color:#243044"><h2>Confirm your password change</h2><p>We received a request to change your HomeBid password. Click the button below to confirm this change.</p><p style="margin:28px 0"><a href="' . $safeUrl . '" style="background:#173f35;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;display:inline-block">Verify password change</a></p><p>This link expires in 15 minutes. If you did not request this change, ignore this email. Your password will remain unchanged.</p></div>';
+                $mailer->AltBody = "Confirm your HomeBid password change using this link (expires in 15 minutes): " . $verifyUrl;
+                $mailer->send();
+            } catch (Throwable $mailError) {
+                hb_query($conn, 'DELETE FROM password_change_requests WHERE user_id=?', [$userId]);
+                error_log('HomeBid password verification email failed: ' . $mailError->getMessage());
+                throw new RuntimeException('We could not send the verification email. Check the email settings and try again.');
+            }
+
+            $notice = 'A verification link has been sent to ' . (string)$user['email'] . '. Your password will change only after you verify the email.';
             $section = 'security';
         } elseif ($action === 'save_notifications') {
             hb_query($conn,'UPDATE users SET email_notifications=?,auction_notifications=?,marketing_notifications=? WHERE id=?',[
@@ -115,7 +163,7 @@ if ($profileRole === 'Seller') {
 <div class="security-inline"><div><h3>Account security</h3><p>Keep your password private and update it regularly.</p></div><a class="secondary" href="?section=security">Change password</a></div>
 <?php elseif($section==='security'):?>
 <div class="card-head"><div><span class="eyebrow">ACCOUNT SECURITY</span><h2>Change password</h2><p>Use a strong password you don't use on other websites.</p></div></div>
-<form method="post" class="settings-form narrow"><input type="hidden" name="csrf_token" value="<?=ps_h(csrf_token())?>"><input type="hidden" name="action" value="change_password">
+<form method="post" class="settings-form narrow"><input type="hidden" name="csrf_token" value="<?=ps_h(csrf_token())?>"><input type="hidden" name="action" value="change_password"><p class="security-note">For your protection, we will email you a verification link before your new password takes effect.</p>
 <label>Current password<input type="password" name="current_password" autocomplete="current-password" required></label>
 <label>New password<input type="password" name="new_password" minlength="8" autocomplete="new-password" required><small>At least 8 characters.</small></label>
 <label>Confirm new password<input type="password" name="confirm_password" minlength="8" autocomplete="new-password" required></label>
