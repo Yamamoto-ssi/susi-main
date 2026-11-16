@@ -13,6 +13,48 @@ const nameField=document.getElementById("nameField");
 const nameInput=form?.elements.namedItem("name");
 const passwordInput=form?.elements.namedItem("password");
 const authSwitch=document.getElementById("authSwitch");
+const googleSignInSection=document.getElementById("googleSignInSection");
+const googleSignInButton=document.getElementById("googleSignInButton");
+const googleSignInNote=document.getElementById("googleSignInNote");
+let googleButtonRendered=false;
+
+function renderGoogleSignInButton(){
+ if(!googleSignInSection||googleSignInSection.hidden)return;
+ if(!window.HOMEBID_GOOGLE_CLIENT_ID){
+  if(googleSignInNote)googleSignInNote.textContent="Google Sign-In needs a configured OAuth Client ID.";
+  return;
+ }
+ if(!window.google?.accounts?.id||!googleSignInButton)return;
+ googleSignInButton.innerHTML="";
+ window.google.accounts.id.initialize({
+  client_id:window.HOMEBID_GOOGLE_CLIENT_ID,
+  callback:handleGoogleCredential
+ });
+ window.google.accounts.id.renderButton(googleSignInButton,{
+  type:"standard",theme:"outline",size:"large",shape:"rectangular",
+  text:"continue_with",logo_alignment:"left",width:360
+ });
+ googleButtonRendered=true;
+ if(googleSignInNote)googleSignInNote.textContent="";
+}
+
+async function handleGoogleCredential(response){
+ if(!response?.credential)return;
+ if(formMessage)formMessage.textContent="Signing in with Google…";
+ try{
+  const data=new FormData();
+  data.set("credential",response.credential);
+  const resultResponse=await fetch("google-login.php",{
+   method:"POST",body:data,headers:{"Accept":"application/json"}
+  });
+  const result=await resultResponse.json();
+  if(!resultResponse.ok||!result.ok)throw new Error(result.message||"Google sign-in failed.");
+  if(formMessage)formMessage.textContent=result.message||"Google sign-in successful.";
+  if(result.redirect)window.location.href=result.redirect;
+ }catch(error){
+  if(formMessage)formMessage.textContent=error.message||"Google sign-in failed. Please try again.";
+ }
+}
 
 function openModal(type){
  if(!backdrop||!form)return;
@@ -21,6 +63,8 @@ function openModal(type){
  modalTitle.textContent=login?"Welcome back":"Create your account";
  modalDescription.textContent=login?"Log in to continue to your HomeBid account.":"Join HomeBid and discover your next home.";
  if(nameField){nameField.hidden=login;nameInput.required=!login;}
+ if(googleSignInSection){googleSignInSection.hidden=!login;if(login)renderGoogleSignInButton();}
+ if(googleSignInNote&&!window.HOMEBID_GOOGLE_CLIENT_ID)googleSignInNote.textContent="Google Sign-In needs a configured OAuth Client ID.";
  if(passwordInput){passwordInput.autocomplete=login?"current-password":"new-password";passwordInput.minLength=login?0:8;}
  const submit=form.querySelector(".form-submit");
  if(submit)submit.textContent=login?"Log In":"Create Account";
@@ -91,3 +135,5 @@ function tick(){
 }
 tick();
 if(timer)setInterval(tick,60000);
+
+window.addEventListener("load",()=>{if(form?.dataset.authMode==="login")renderGoogleSignInButton();});
