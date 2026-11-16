@@ -271,7 +271,7 @@ function homebid_money($amount): string {
         </section>
     </div>
     <div class="toast" id="toast" role="status"></div>
-    <script src="script.js?v=20261116-3"></script>
+    <script src="script.js?v=20261117-1"></script>
 </body>
 
 </html>
