@@ -44,13 +44,12 @@ if ($account['role'] === 'Client') {
  $redirect = 'client/dashboard.php';
 } elseif ($account['role'] === 'Buyer') {
  $redirect = 'client/dashboard.php';
-<<<<<<< HEAD
-=======
+
 } elseif ($account['role'] === 'Staff') {
  $redirect = 'staff/dashboard.php';
 } elseif ($account['role'] === 'Administrator') {
  $redirect = 'admin/dashboard.php';
->>>>>>> bfe8f3e565d3e64f98c26e59598f102e6c2b4c99
+
 } else {
  respond(403,['ok'=>false,'message'=>'Your account role is not configured for dashboard access. Please contact an administrator.']);
 }
