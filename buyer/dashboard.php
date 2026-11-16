@@ -53,10 +53,11 @@ $auctions=buyer_rows($conn,"SELECT a.id auction_id,a.status auction_status,a.sta
  ORDER BY CASE WHEN a.status='active' THEN 0 WHEN a.status='upcoming' THEN 1 ELSE 2 END,
  COALESCE(a.end_time,p.created_at) ASC LIMIT 24",
  ['%'.$search.'%','%'.$search.'%','%'.$search.'%']);
-$myBids=buyer_rows($conn,"undefined$userId AND cp.status='paid') AS auction_paid
- FROM bids b JOIN properties p ON p.id=b.property_id
- LEFT JOIN auctions a ON a.id=(SELECT a2.id FROM auctions a2 WHERE a2.property_id=p.id ORDER BY a2.id DESC LIMIT 1)
- WHERE b.user_id=? ORDER BY b.created_at DESC LIMIT 100",[$userId]);
+$myBids=buyer_rows($conn,"SELECT b.id,b.bid_amount,b.status bid_status,b.created_at,p.title,p.location,a.id auction_id,a.highest_bidder_id,a.status auction_status,a.current_bid,a.end_time,p.image_path,
+  EXISTS(SELECT 1 FROM checkout_payments cp WHERE cp.auction_id=a.id AND cp.user_id=b.user_id AND cp.status='paid') AS auction_paid
+  FROM bids b JOIN properties p ON p.id=b.property_id
+  LEFT JOIN auctions a ON a.id=(SELECT a2.id FROM auctions a2 WHERE a2.property_id=p.id ORDER BY a2.id DESC LIMIT 1)
+  WHERE b.user_id=? ORDER BY b.created_at DESC LIMIT 100",[$userId]);
 $recentBids=array_slice($myBids,0,4);
 $activityLog=buyer_rows($conn,"SELECT activity,entity_type,record_id,created_at FROM (
  SELECT action activity,entity_type,record_id,created_at FROM activity_logs WHERE user_id=?
