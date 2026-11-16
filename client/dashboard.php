@@ -146,7 +146,7 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
             <div class="workspace"><small>WORKSPACE</small><button><span
                         class="avatar small"><?=e($initials)?></span><span><strong><?=e($account['username'])?></strong><small>Verified
                             seller</small></span><?=ico('chevron',14)?></button></div>
-            <nav><small class="nav-label">MAIN MENU</small><?php foreach($nav as [$id,$label,$icon,$count]):?><a
+            <nav><small class="nav-label">MAIN MENU</small><a href="profile.php"><?=ico('home')?><span>Profile &amp; settings</span><?=ico('chevron',14)?></a><?php foreach($nav as [$id,$label,$icon,$count]):?><a
                     class="<?=$page===$id?'active':''?>"
                     href="?page=<?=$id?>"><?=ico($icon)?><span><?=e($label)?></span><?php if($count!==''):?><b><?=e($count)?></b><?php endif;?></a><?php endforeach;?>
             </nav>
