@@ -3,3 +3,4 @@
 
 /uploads/private/*
 !/uploads/private/.htaccess
+/config/xendit.local.php
