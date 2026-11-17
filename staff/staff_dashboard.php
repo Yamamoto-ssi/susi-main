@@ -35,6 +35,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 $counts=hb_fetch_one(hb_query($conn, "SELECT COUNT(*) total,COALESCE(SUM(is_approved=0),0) pending,COALESCE(SUM(is_approved=1),0) approved,COALESCE(SUM(status='Sold'),0) sold FROM properties"));
 $auctionCounts=hb_fetch_one(hb_query($conn, "SELECT COUNT(*) total,COALESCE(SUM(status='active'),0) active FROM auctions"));
 $bidCount=(int)hb_fetch_value(hb_query($conn, 'SELECT COUNT(*) FROM bids'));
+$pendingSellerApplications=(int)hb_fetch_value(hb_query($conn, "SELECT COUNT(*) FROM seller_applications WHERE status='pending'"));
 $pending=hb_fetch_all(hb_query($conn, "SELECT p.*,u.username,u.email FROM properties p LEFT JOIN users u ON u.id=p.user_id WHERE p.is_approved=0 AND p.review_status IN ('pending','admin_approval') ORDER BY p.created_at ASC"));
 $recent=hb_fetch_all(hb_query($conn, 'SELECT p.*,u.username FROM properties p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 12'));
 $auctions=hb_fetch_all(hb_query($conn, 'SELECT a.*,p.title,p.is_approved FROM auctions a JOIN properties p ON p.id=a.property_id ORDER BY a.created_at DESC LIMIT 30'));
@@ -340,6 +341,7 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
                 <li class="nav-item"><a class="nav-link" href="properties.php">Properties</a></li>
                 <li class="nav-item"><a class="nav-link" href="bidding.php">Bidding</a></li>
                 <li class="nav-item"><a class="nav-link" href="buyers.php">Buyers</a></li>
+                <li class="nav-item"><a class="nav-link" href="seller-applications.php">Seller applications<?php if($pendingSellerApplications>0):?> (<?=$pendingSellerApplications?>)<?php endif;?></a></li>
                 <li class="nav-item"><a class="nav-link" href="reports.php">Reports</a></li>
                 <li class="nav-item"><a class="nav-link" href="../receipt/management.php">Paid receipts</a></li>
                 <li class="nav-item"><a class="nav-link" href="notification.php">Notifications</a></li>
@@ -376,6 +378,7 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
                 <div class="staff-stat"><small>Active
                         auctions</small><strong><?=(int)$auctionCounts['active']?></strong></div>
                 <div class="staff-stat"><small>Total bids placed</small><strong><?=$bidCount?></strong></div>
+                <div class="staff-stat"><small>Pending seller applications</small><strong><?=$pendingSellerApplications?></strong><a class="staff-btn" style="margin-top:10px" href="seller-applications.php">Review applications</a></div>
                 <div class="staff-stat"><small>Sold properties</small><strong><?=(int)$counts['sold']?></strong></div>
             </div>
             <section class="staff-card" id="approvals">
