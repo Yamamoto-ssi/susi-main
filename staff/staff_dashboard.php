@@ -343,6 +343,7 @@ function sh($v){return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
                 <li class="nav-item"><a class="nav-link" href="buyers.php">Buyers</a></li>
                 <li class="nav-item"><a class="nav-link" href="seller-applications.php">Seller applications<?php if($pendingSellerApplications>0):?> (<?=$pendingSellerApplications?>)<?php endif;?></a></li>
                 <li class="nav-item"><a class="nav-link" href="reports.php">Reports</a></li>
+                <li class="nav-item"><a class="nav-link" href="../payment-review.php">Payment verification</a></li>
                 <li class="nav-item"><a class="nav-link" href="../receipt/management.php">Paid receipts</a></li>
                 <li class="nav-item"><a class="nav-link" href="notification.php">Notifications</a></li>
                 <li class="nav-item"><a class="nav-link" href="roles_sec.php">Roles &amp; Security</a></li>
