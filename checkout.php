@@ -28,7 +28,7 @@ try{
   if(!$propertyId)throw new RuntimeException('The property reference is invalid.');
   $stmt=$conn->prepare("SELECT id FROM properties WHERE id=? AND status='Available' AND is_approved=1 AND review_status='approved' FOR UPDATE");$stmt->bind_param('i',$propertyId);$stmt->execute();$property=$stmt->get_result()->fetch_assoc();$stmt->close();
   if(!$property)throw new RuntimeException('This property is no longer available for reservation.');
-  $stmt=$conn->prepare("SELECT id FROM checkout_payments WHERE payment_type='reservation' AND property_id=? AND user_id=? AND status='pending' LIMIT 1 FOR UPDATE");$stmt->bind_param('ii',$propertyId,$userId);$stmt->execute();$existing=$stmt->get_result()->fetch_assoc();$stmt->close();
+  $stmt=$conn->prepare("SELECT id FROM checkout_payments WHERE payment_type='reservation' AND property_id=? AND status='pending' LIMIT 1 FOR UPDATE");$stmt->bind_param('i',$propertyId);$stmt->execute();$existing=$stmt->get_result()->fetch_assoc();$stmt->close();
   if($existing)throw new RuntimeException('You already have a reservation payment awaiting review for this property.');
   $amount=5000.00;$stmt=$conn->prepare("INSERT INTO reservations(property_id,user_id,reservation_fee,status) VALUES(?,?,?,'Pending')");$stmt->bind_param('iid',$propertyId,$userId,$amount);$stmt->execute();$reservationId=(int)$conn->insert_id;$stmt->close();
  }else{
