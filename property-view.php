@@ -2,6 +2,9 @@
 declare(strict_types=1);
 require_once __DIR__ . '/config/auth.php';
 require_once __DIR__ . '/config/db.php';
+$manualPaymentConfigPath = __DIR__ . '/config/manual-payment.local.php';
+$manualPaymentConfig = is_file($manualPaymentConfigPath) ? require $manualPaymentConfigPath : [];
+if (!is_array($manualPaymentConfig)) $manualPaymentConfig = [];
 
 function property_h($value): string {
     return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
@@ -247,13 +250,17 @@ input,select,textarea{border:1px solid #dfe5e1;border-radius:9px;min-height:42px
 </form>
 <?php else: ?><p class="notice">Bidding is not open right now. Check the auction schedule above.</p><?php endif; ?>
 <?php else: ?>
-<form method="post" action="checkout.php" style="margin-top:18px">
+<form method="post" action="checkout.php" enctype="multipart/form-data" style="margin-top:18px">
 <input type="hidden" name="csrf_token" value="<?=property_h(csrf_token())?>">
 <input type="hidden" name="payment_type" value="reservation">
 <input type="hidden" name="property_id" value="<?= (int)$property['id'] ?>">
 <div class="info"><span>Reservation fee</span><b>₱5,000.00</b></div>
-<button class="btn" type="submit" style="width:100%;border:0;cursor:pointer">Reserve with Xendit</button>
-<p class="notice">You will be redirected to Xendit to complete your reservation payment securely.</p>
+<p class="notice"><b>GCash:</b> <?=property_h($manualPaymentConfig['gcash_name']??'Ask HomeBid staff for the account name')?> · <?=property_h($manualPaymentConfig['gcash_number']??'Payment number not configured')?></p>
+<p class="notice"><b>Bank:</b> <?=property_h($manualPaymentConfig['bank_name']??'Ask HomeBid staff for bank details')?> · <?=property_h($manualPaymentConfig['bank_account_name']??'')?> · <?=property_h($manualPaymentConfig['bank_account_number']??'')?></p>
+<label for="payment_method">Payment method</label><select id="payment_method" name="payment_method" required style="width:100%;padding:11px;margin:6px 0 12px"><option value="GCash">GCash</option><option value="Bank transfer">Bank transfer</option></select>
+<label for="payment_proof">Upload proof (JPG, PNG, WEBP or PDF; max 5 MB)</label><input id="payment_proof" type="file" name="payment_proof" accept=".jpg,.jpeg,.png,.webp,.pdf" required style="width:100%;margin:8px 0 12px">
+<button class="btn" type="submit" style="width:100%;border:0;cursor:pointer">Submit payment proof</button>
+<p class="notice"><?=property_h($manualPaymentConfig['instructions']??'Transfer the exact amount using details provided by HomeBid staff, then upload your transaction proof. Your payment remains pending until Staff/Admin verifies it.')?></p>
 </form>
 <?php endif; ?>
 <a class="btn secondary" href="index.php#properties">Browse more properties</a>
