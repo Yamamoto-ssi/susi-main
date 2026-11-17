@@ -68,7 +68,7 @@ if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
     }
     $bidMessage = $paidReservation
         ? 'Your reservation payment was received and confirmed. The property is now reserved for your account.'
-        : 'Xendit returned you to HomeBid. We are waiting for payment confirmation. Refresh this page in a moment.';
+        : 'Your payment proof is awaiting Staff/Admin verification. You will be notified when it has been reviewed.';
     $bidMessageType = $paidReservation ? 'success' : 'error';
 } elseif (isset($_GET['payment']) && $_GET['payment'] === 'failed') {
     $bidMessage = 'Your payment was not completed. You can try again while the property remains available.';
