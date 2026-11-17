@@ -15,7 +15,7 @@ $buyerName=$receiptData['username']?:'Buyer'; $buyerEmail=$receiptData['email']?
 $buyerAddress=$receiptData['mailing_address']?:$receiptData['location']; $buyerPhone=$receiptData['phone_number']?:'Not provided';
 $receiptNo='HB-RES-'.str_pad((string)$paymentId,6,'0',STR_PAD_LEFT); $paymentDate=strtotime($receiptData['created_at'])?:time();
 $propertyPrice=(float)$receiptData['price']; $amountPaid=(float)$receiptData['amount'];
-$receipt=['buyer_name'=>$buyerName,'buyer_address'=>$buyerAddress,'buyer_phone'=>$buyerPhone,'buyer_email'=>$buyerEmail,'constituent_id'=>$receiptNo,'purchased_on'=>date('m/d/Y',$paymentDate),'printed_on'=>date('m/d/Y'),'payment_type'=>'Xendit Online Reservation Payment','reference_no'=>$receiptData['invoice_id']?:$receiptData['external_id'],'item'=>['name'=>$receiptData['title'],'category'=>$receiptData['property_type']?:'Real Estate','transaction'=>'Property Reservation','property_price'=>$propertyPrice,'amount_paid'=>$amountPaid,'balance_due'=>max(0,$propertyPrice-$amountPaid)]];
+$receipt=['buyer_name'=>$buyerName,'buyer_address'=>$buyerAddress,'buyer_phone'=>$buyerPhone,'buyer_email'=>$buyerEmail,'constituent_id'=>$receiptNo,'purchased_on'=>date('m/d/Y',$paymentDate),'printed_on'=>date('m/d/Y'),'payment_type'=>'Manual GCash / Bank Transfer','reference_no'=>$receiptData['invoice_id']?:$receiptData['external_id'],'item'=>['name'=>$receiptData['title'],'category'=>$receiptData['property_type']?:'Real Estate','transaction'=>'Property Reservation','property_price'=>$propertyPrice,'amount_paid'=>$amountPaid,'balance_due'=>max(0,$propertyPrice-$amountPaid)]];
 ?>
 <!doctype html>
 <html lang="en">
