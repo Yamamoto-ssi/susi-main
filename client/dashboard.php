@@ -121,6 +121,15 @@ $q = hb_query($conn, 'SELECT v.*,p.title FROM viewing_bookings v JOIN properties
 $q = hb_query($conn, 'SELECT n.id,n.title,n.message,n.is_read,n.created_at FROM notifications n WHERE n.user_id=? ORDER BY n.created_at DESC LIMIT 50', [$userId]);$notifications=hb_fetch_all($q);
 $q = hb_query($conn, 'SELECT username,role FROM users WHERE id=?', [$userId]);$account=hb_fetch_one($q)?:['username'=>'Seller','role'=>'Buyer'];$initials=strtoupper(substr($account['username'],0,2));
 $active=array_values(array_filter($auctions,fn($a)=>strtolower((string)$a['status'])==='active'));$featured=$active[0]??($auctions[0]??null);$bidTotal=array_sum(array_column($properties,'bid_count'));$highest=(float)($featured['current_bid']??$featured['starting_bid']??0);
+$portfolioMonths=[];$portfolioRows=[];
+$q=hb_query($conn,"SELECT DATE_FORMAT(created_at,'%Y-%m') month_key,COUNT(*) submitted,SUM(is_approved=1) approved FROM properties WHERE user_id=? AND created_at>=DATE_SUB(CURDATE(),INTERVAL 5 MONTH) GROUP BY DATE_FORMAT(created_at,'%Y-%m')",[$userId]);
+foreach(hb_fetch_all($q) as $row)$portfolioRows[$row['month_key']]=$row;
+$monthCursor=new DateTimeImmutable('first day of this month');
+for($i=5;$i>=0;$i--){$month=$monthCursor->modify('-'.$i.' months');$key=$month->format('Y-m');$row=$portfolioRows[$key]??[];$portfolioMonths[]=['label'=>$month->format('M'),'submitted'=>(int)($row['submitted']??0),'approved'=>(int)($row['approved']??0)];}
+$portfolioSubmitted=array_sum(array_column($portfolioMonths,'submitted'));$portfolioApproved=array_sum(array_column($portfolioMonths,'approved'));
+$portfolioMax=max(1,...array_column($portfolioMonths,'submitted'),...array_column($portfolioMonths,'approved'));$portfolioScale=max(1,(int)ceil($portfolioMax/4));$portfolioTop=$portfolioScale*4;
+$portfolioPoints=function($field)use($portfolioMonths,$portfolioTop){$points=[];$last=count($portfolioMonths)-1;foreach($portfolioMonths as $i=>$month){$x=$last?($i/$last)*640:320;$y=170-($month[$field]/$portfolioTop)*150;$points[]=round($x,1).','.round($y,1);}return implode(' ',$points);};
+
 function e($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}function peso($v){return '₱'.number_format((float)$v,2);}function ico($n,$s=18){$p=['grid'=>'<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>','home'=>'<path d="m3 11 9-7 9 7M5 10v10h14V10M9 20v-6h6v6"/>','check'=>'<path d="m20 6-11 11-5-5"/><circle cx="12" cy="12" r="9"/>','gavel'=>'<path d="m14 5 5 5M11 8l5 5M6 13l5 5M3 21h11M13 4l-8 8 6 6 8-8"/>','pulse'=>'<path d="M3 12h4l3-6 4 12 3-6h4"/><circle cx="12" cy="12" r="9"/>','trophy'=>'<path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM10 13v4m4-4v4M7 20h10M8 6H4v2a4 4 0 0 0 4 4M16 6h4v2a4 4 0 0 1-4 4"/>','bell'=>'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>','plus'=>'<path d="M12 5v14M5 12h14"/>','search'=>'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>','chevron'=>'<path d="m9 18 6-6-6-6"/>','arrow'=>'<path d="M5 12h14m-5-5 5 5-5 5"/>','building'=>'<path d="M4 21V7l8-4 8 4v14M8 10h2m4 0h2M8 14h2m4 0h2M9 21v-3h6v3"/>','clock'=>'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>','users'=>'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8M22 21v-2a4 4 0 0 0-3-4"/>','trend'=>'<path d="m3 17 6-6 4 4 8-9m-6 0h6v6"/>','shield'=>'<path d="m12 3-8 3v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-3Z"/><path d="m9 12 2 2 4-4"/>','menu'=>'<path d="M4 7h16M4 12h16M4 17h16"/>','x'=>'<path d="m6 6 12 12M18 6 6 18"/>','file'=>'<path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6m-6 4h6"/>','dots'=>'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>'];return '<svg width="'.$s.'" height="'.$s.'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'.($p[$n]??$p['file']).'</svg>';}
 function badge($s){$c=strtolower($s);if(!in_array($c,['approved','pending','live','active','rejected']))$c='pending';return '<span class="badge badge-'.$c.'"><i></i>'.e($s).'</span>';}
 $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$stats['total']],['approvals','Approvals','check',$stats['pending']],['auctions','Manage Auctions','gavel',''],['live','Live Bidding','pulse',count($active)],['results','Auction Results','trophy',$stats['sold']],['notifications','Notifications','bell','']];$titles=['overview'=>'Overview','properties'=>'My Properties','approvals'=>'Approvals','auctions'=>'Manage Auctions','live'=>'Live Bidding','results'=>'Auction Results','notifications'=>'Notifications'];
@@ -204,35 +213,26 @@ $nav=[['overview','Overview','grid',''],['properties','My Properties','home',$st
                                 <option>All time</option>
                             </select>
                         </div>
-                        <div class="chart-metrics"><span><i class="gold"></i>Auction
-                                value<strong><?=peso(array_sum(array_map(fn($a)=>(float)($a['current_bid']??$a['starting_bid']??0),$auctions)))?></strong></span><span><i></i>Properties
-                                sold<strong><?=$stats['sold']?></strong></span>
-                            <div><b><?=$stats['total']?round($stats['approved']/$stats['total']*100):0?>%</b> approval
-                                rate</div>
+                        <div class="chart-metrics">
+                            <span><i class="gold"></i>Properties submitted<strong><?=e($portfolioSubmitted)?></strong></span>
+                            <span><i></i>Approved listings<strong><?=e($portfolioApproved)?></strong></span>
+                            <div><b><?=$portfolioSubmitted?round($portfolioApproved/$portfolioSubmitted*100):0?>%</b> approval rate</div>
                         </div>
-                        <div class="chart">
+                        <div class="chart" role="img" aria-label="Monthly property submissions and approvals over the last six months">
                             <div class="y-labels">
-                                <span>₱800k</span><span>₱600k</span><span>₱400k</span><span>₱200k</span><span>₱0</span>
+                                <?php for($tick=4;$tick>=0;$tick--):?><span><?=e($tick*$portfolioScale)?></span><?php endfor;?>
                             </div>
                             <div class="chart-area">
-                                <div class="grid-lines"><i></i><i></i><i></i><i></i><i></i></div><svg
-                                    viewBox="0 0 640 190" preserveAspectRatio="none">
-                                    <defs>
-                                        <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0" stop-color="#bd934d" stop-opacity=".22" />
-                                            <stop offset="1" stop-color="#bd934d" stop-opacity="0" />
-                                        </linearGradient>
-                                    </defs>
-                                    <path
-                                        d="M0 154 C70 139 85 100 130 111 S210 146 260 89 S340 42 390 72 S480 108 520 51 S595 20 640 36 L640 190 L0 190Z"
-                                        fill="url(#area)" />
-                                    <path
-                                        d="M0 154 C70 139 85 100 130 111 S210 146 260 89 S340 42 390 72 S480 108 520 51 S595 20 640 36"
-                                        fill="none" stroke="#b78c43" stroke-width="3" />
+                                <div class="grid-lines"><i></i><i></i><i></i><i></i><i></i></div>
+                                <svg viewBox="0 0 640 190" preserveAspectRatio="none" aria-hidden="true">
+                                    <polyline points="<?=$portfolioPoints('submitted')?>" fill="none" stroke="#b78c43" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="<?=$portfolioPoints('approved')?>" fill="none" stroke="#284f70" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <?php foreach($portfolioMonths as $i=>$month):$x=$i*128;$ySubmitted=170-($month['submitted']/$portfolioTop)*150;$yApproved=170-($month['approved']/$portfolioTop)*150;?>
+                                    <circle cx="<?=$x?>" cy="<?=round($ySubmitted,1)?>" r="4" fill="#b78c43"/>
+                                    <circle cx="<?=$x?>" cy="<?=round($yApproved,1)?>" r="4" fill="#284f70"/>
+                                    <?php endforeach;?>
                                 </svg>
-                                <div class="x-labels">
-                                    <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
-                                </div>
+                                <div class="x-labels"><?php foreach($portfolioMonths as $month):?><span><?=e($month['label'])?></span><?php endforeach;?></div>
                             </div>
                         </div>
                     </article>
