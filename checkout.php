@@ -12,6 +12,8 @@ if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);payment_page('Pa
 verify_csrf();
 $paymentType=(string)($_POST['payment_type']??'');
 if(!in_array($paymentType,['reservation','auction'],true))payment_page('Invalid payment','The selected payment type is not valid.','error');
+$paymentMethod=(string)($_POST['payment_method']??'');
+if(!in_array($paymentMethod,['GCash','Bank transfer'],true))payment_page('Invalid payment method','Choose GCash or bank transfer.','error');
 if(!isset($_FILES['payment_proof'])||!is_uploaded_file($_FILES['payment_proof']['tmp_name']))payment_page('Proof of payment required','Upload a screenshot or PDF of your GCash or bank transfer before submitting.','error');
 $file=$_FILES['payment_proof'];
 if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK||(int)$file['size']>5*1024*1024)payment_page('Upload failed','The proof must be no larger than 5 MB.','error');
@@ -40,7 +42,7 @@ try{
  $proofName=bin2hex(random_bytes(20)).'.'.$extensions[$mime];$relativePath='uploads/private/payment-proofs/'.$proofName;if(!move_uploaded_file($file['tmp_name'],$proofDir.'/'.$proofName))throw new RuntimeException('The proof file could not be saved.');
  $externalId='MANUAL_'.strtoupper(bin2hex(random_bytes(12)));
  $stmt=$conn->prepare("INSERT INTO checkout_payments(payment_type,reservation_id,auction_id,property_id,user_id,amount,external_id,status,payment_method,proof_path) VALUES(?,?,?,?,?,?,?,'pending',?,?)");
- $stmt->bind_param('siiiidss',$paymentType,$reservationId,$auctionId,$propertyId,$userId,$amount,$externalId,$paymentMethod,$relativePath);$stmt->execute();$paymentId=(int)$conn->insert_id;$stmt->close();$conn->commit();
+ $stmt->bind_param('siiiidsss',$paymentType,$reservationId,$auctionId,$propertyId,$userId,$amount,$externalId,$paymentMethod,$relativePath);$stmt->execute();$paymentId=(int)$conn->insert_id;$stmt->close();$conn->commit();
 }catch(Throwable $e){try{$conn->rollback();}catch(Throwable $ignored){}if($relativePath&&is_file(__DIR__.'/'.$relativePath))@unlink(__DIR__.'/'.$relativePath);error_log('HomeBid manual payment submission: '.$e->getMessage());payment_page('Payment was not submitted',$e instanceof RuntimeException?$e->getMessage():'A database error occurred. Please contact HomeBid support.','error');}
 try{$title=$paymentType==='auction'?'Auction payment proof submitted':'Reservation payment proof submitted';$message='Your proof of payment is awaiting Staff/Admin verification. Do not send another payment while this submission is pending.';$entity='payment';$stmt=$conn->prepare("INSERT INTO notifications(user_id,title,message,related_entity,related_id) VALUES(?,?,?,?,?)");$stmt->bind_param('ssssi',$userId,$title,$message,$entity,$paymentId);$stmt->execute();$stmt->close();}catch(Throwable $ignored){}
 payment_page('Proof submitted successfully','Your payment of ₱'.number_format($amount,2).' has been submitted for verification. Your receipt will become available only after Staff/Admin approves the payment.','success');
