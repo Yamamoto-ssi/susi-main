@@ -9,10 +9,14 @@ const modalTitle=document.getElementById("modalTitle");
 const modalDescription=document.getElementById("modalDescription");
 const form=document.getElementById("accountForm");
 const formMessage=document.getElementById("formMessage");
-const nameField=document.getElementById("nameField");
+const firstNameField=document.getElementById("firstNameField");
+const lastNameField=document.getElementById("lastNameField");
+const phoneField=document.getElementById("phoneField");
 const usernameField=document.getElementById("usernameField");
 const loginIdentifierLabel=document.getElementById("loginIdentifierLabel");
-const nameInput=form?.elements.namedItem("name");
+const firstNameInput=form?.elements.namedItem("first_name");
+const lastNameInput=form?.elements.namedItem("last_name");
+const phoneInput=form?.elements.namedItem("phone_number");
 const passwordInput=form?.elements.namedItem("password");
 const authSwitch=document.getElementById("authSwitch");
 const googleSignInSection=document.getElementById("googleSignInSection");
@@ -29,7 +33,9 @@ function openModal(type){
  if(loginIdentifierLabel)loginIdentifierLabel.firstChild.textContent=login?"Email address or username":"Email address";
  modalTitle.textContent=login?"Welcome back":"Create your account";
  modalDescription.textContent=login?"Log in to continue to your HomeBid account.":"Join HomeBid and discover your next home.";
- if(nameField){nameField.hidden=login;nameInput.required=!login;}
+ if(firstNameField){firstNameField.hidden=login;firstNameInput.required=!login;}
+ if(lastNameField){lastNameField.hidden=login;lastNameInput.required=!login;}
+ if(phoneField){phoneField.hidden=login;phoneInput.required=!login;}
  const usernameInput=form.elements.namedItem("username");
  if(usernameField){usernameField.hidden=login;usernameInput.required=!login;}
  if(googleSignInButton)googleSignInButton.href=login?"google-start.php?intent=login":"google-start.php?intent=signup";
@@ -44,7 +50,7 @@ function openModal(type){
  backdrop.classList.add("open");
  backdrop.setAttribute("aria-hidden","false");
  document.body.style.overflow="hidden";
- const first=login?form.elements.namedItem("email"):nameInput;
+ const first=login?form.elements.namedItem("email"):firstNameInput;
  first?.focus();
 }
 function closeModal(){
@@ -67,7 +73,10 @@ form?.addEventListener("submit",async event=>{
  const mode=form.dataset.authMode||"signup";
  const email=form.elements.namedItem("email").value.trim();
  const password=passwordInput.value;
- if(mode==="signup"&&!nameInput.value.trim()){formMessage.textContent="Please enter your full name.";nameInput.focus();return;}
+ if(mode==="signup"&&!firstNameInput.value.trim()){formMessage.textContent="Please enter your first name.";firstNameInput.focus();return;}
+ if(mode==="signup"&&!lastNameInput.value.trim()){formMessage.textContent="Please enter your last name.";lastNameInput.focus();return;}
+ if(mode==="signup"&&!phoneInput.value.trim()){formMessage.textContent="Please enter your phone number.";phoneInput.focus();return;}
+ if(mode==="signup"&&!/^\\+?[0-9][0-9\\s().-]{6,18}$/.test(phoneInput.value.trim())){formMessage.textContent="Please enter a valid phone number.";phoneInput.focus();return;}
  if(mode==="signup"&&!form.elements.namedItem("username").value.trim()){formMessage.textContent="Please choose a username.";form.elements.namedItem("username").focus();return;}
  if(mode==="signup"&&!/^[A-Za-z0-9._-]{3,50}$/.test(form.elements.namedItem("username").value.trim())){formMessage.textContent="Username must be 3–50 characters and use only letters, numbers, dots, underscores, or hyphens.";form.elements.namedItem("username").focus();return;}
  if(!email||(mode==="signup"&&!form.elements.namedItem("email").checkValidity())){formMessage.textContent=mode==="login"?"Please enter your email address or username.":"Please enter a valid email address.";form.elements.namedItem("email").focus();return;}
