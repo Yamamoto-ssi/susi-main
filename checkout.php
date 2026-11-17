@@ -1,6 +1,9 @@
 <?php
 session_start();
 require_once 'config/db.php';
+$xenditConfigPath = __DIR__ . '/config/xendit.local.php';
+$xenditConfig = is_file($xenditConfigPath) ? require $xenditConfigPath : []; 
+if (!is_array($xenditConfig)) $xenditConfig = [];
 
 function showCheckoutError(string $message, int $statusCode = 400): void
 {
@@ -12,7 +15,11 @@ function showCheckoutError(string $message, int $statusCode = 400): void
 
 function getApplicationBaseUrl(): string
 {
+    global $xenditConfig;
     $configuredUrl = getenv('APP_BASE_URL');
+    if (($configuredUrl === false || trim($configuredUrl) === '') && !empty($xenditConfig['app_base_url'])) {
+        $configuredUrl = $xenditConfig['app_base_url'];
+    }
     if ($configuredUrl !== false && trim($configuredUrl) !== '') {
         return rtrim(trim($configuredUrl), '/');
     }
@@ -49,7 +56,11 @@ function sendWebhookResponse(int $statusCode, array $response): void
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json') === 0) {
+    global $xenditConfig;
     $callbackToken = getenv('XENDIT_CALLBACK_TOKEN');
+    if (($callbackToken === false || trim($callbackToken) === '') && !empty($xenditConfig['callback_token'])) {
+        $callbackToken = $xenditConfig['callback_token'];
+    }
     $receivedToken = $_SERVER['HTTP_X_CALLBACK_TOKEN'] ?? '';
     if ($callbackToken === false || trim($callbackToken) === '' || !is_string($receivedToken) || !hash_equals(trim($callbackToken), $receivedToken)) {
         error_log('Checkout webhook rejected: invalid callback token.');
@@ -78,7 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos(strtolower($_SERVER['CONTENT
 
         if ($callbackStatus === 'PAID') {
             $paidAmount = $callback['paid_amount'] ?? null;
-            if (!is_numeric($paidAmount) || abs((float) $paidAmount - (float) $payment['amount']) > 0.01) {
+            if (!is_numeric($paidAmount) || abs((float) $paidAmount - (float) $payment['amount']) > 0.01
+                || (isset($callback['currency']) && strtoupper((string) $callback['currency']) !== 'PHP')) {
                 $conn->rollback();
                 error_log('Checkout webhook rejected: invoice amount mismatch for payment ' . (int) $payment['id'] . '.');
                 sendWebhookResponse(400, ['error' => 'Invoice amount does not match.']);
@@ -101,23 +113,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos(strtolower($_SERVER['CONTENT
 
             if ($payment['reservation_id'] !== null) {
                 if ($callbackStatus === 'PAID') {
-                    $reservationUpdate = $conn->prepare("UPDATE reservations SET status = 'Approved' WHERE id = ? AND status IN ('Pending', 'Cancelled')");
-                } else {
-                    $reservationUpdate = $conn->prepare("UPDATE reservations SET status = 'Cancelled' WHERE id = ? AND status = 'Pending'");
-                }
-                $reservationUpdate->bind_param('i', $payment['reservation_id']);
-                $reservationUpdate->execute();
-                $reservationUpdate->close();
-
-                if ($callbackStatus === 'PAID') {
                     $propertyUpdate = $conn->prepare("UPDATE properties SET status = 'Reserved' WHERE id = ? AND status = 'Available'");
                     $propertyUpdate->bind_param('i', $payment['property_id']);
                     $propertyUpdate->execute();
-                    if ($propertyUpdate->affected_rows !== 1) {
-                        error_log('Checkout payment ' . (int) $payment['id'] . ' was paid, but its property was no longer available to reserve.');
-                    }
+                    $propertyReserved = $propertyUpdate->affected_rows === 1;
                     $propertyUpdate->close();
+                    if ($propertyReserved) {
+                        $reservationUpdate = $conn->prepare("UPDATE reservations SET status = 'Approved' WHERE id = ? AND status = 'Pending'");
+                    } else {
+                        error_log('Xendit payment ' . (int) $payment['id'] . ' was paid, but its property was no longer available; reservation left pending for manual review.');
+                        $reservationUpdate = null;
+                    }
+                } else {
+                    $reservationUpdate = $conn->prepare("UPDATE reservations SET status = 'Cancelled' WHERE id = ? AND status = 'Pending'");
                 }
+nullable reservation update
             }
         }
 
@@ -129,6 +139,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos(strtolower($_SERVER['CONTENT
     }
 
     sendWebhookResponse(200, ['received' => true]);
+}
+
+$secretKey = getenv('XENDIT_SECRET_KEY');
+if (($secretKey === false || trim($secretKey) === '') && !empty($xenditConfig['secret_key'])) {
+    $secretKey = $xenditConfig['secret_key'];
 }
 
 if (!isset($_SESSION['user_id'])) {
@@ -148,7 +163,6 @@ if (!isset($_SESSION['csrf_token']) || !is_string($csrfToken) || !hash_equals($_
     showCheckoutError('Your session expired. Go back and submit checkout again.', 403);
 }
 
-$secretKey = getenv('XENDIT_SECRET_KEY');
 if ($secretKey === false || trim($secretKey) === '') {
     error_log('Checkout unavailable: XENDIT_SECRET_KEY is not configured.');
     showCheckoutError('Online payment is not configured yet. Please contact the site administrator.', 503);
@@ -317,8 +331,13 @@ try {
     showCheckoutError('We could not start checkout. Please try again later.', 500);
 }
 
+$returnUrl = getApplicationBaseUrl() . '/xendit-return.php?external_id=' . rawurlencode($externalId);
+$successUrl = $returnUrl . '&result=success';
+$failureUrl = $returnUrl . '&result=failed';
+
 $invoiceData = [
     'external_id' => $externalId,
+    'currency' => 'PHP',
     'amount' => $amount,
     'invoice_duration' => 86400,
     'payer_email' => $user['email'],
