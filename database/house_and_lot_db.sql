@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 16, 2026 at 09:49 PM
+-- Generation Time: Nov 17, 2026 at 01:04 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -68,7 +68,18 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `action`, `entity_type`, `record_i
 (24, 14, 'Updated auction status to ended', 'auction', 2, '::1', '2026-11-16 07:46:20'),
 (25, 14, 'Updated auction status to ended', 'auction', 2, '::1', '2026-11-16 07:47:02'),
 (26, 16, 'Submitted seller application', 'seller_application', 1, '::1', '2026-11-16 18:26:40'),
-(27, 13, 'Seller application approved', 'seller_application', 1, '::1', '2026-11-16 18:48:22');
+(27, 13, 'Seller application approved', 'seller_application', 1, '::1', '2026-11-16 18:48:22'),
+(28, 16, 'Logged out', 'user', 16, '::1', '2026-11-16 22:55:38'),
+(29, 16, 'Logged in', 'user', 16, '::1', '2026-11-16 22:55:57'),
+(30, 16, 'Logged out', 'user', 16, '::1', '2026-11-16 23:09:51'),
+(31, 13, 'Logged in', 'user', 13, '::1', '2026-11-16 23:11:05'),
+(32, 13, 'Placed a bid of ₱5,000,000.00 on Premium House and Lot Auction', 'bid', 0, '::1', '2026-11-16 23:17:08'),
+(33, 13, 'Logged out', 'user', 13, '::1', '2026-11-16 23:26:16'),
+(34, 16, 'Logged in', 'user', 16, '::1', '2026-11-16 23:26:32'),
+(35, 16, 'Logged out', 'user', 16, '::1', '2026-11-16 23:27:27'),
+(36, 14, 'Logged in', 'user', 14, '::1', '2026-11-16 23:27:39'),
+(37, 14, 'Logged out', 'user', 14, '::1', '2026-11-16 23:58:28'),
+(38, 16, 'Logged in', 'user', 16, '::1', '2026-11-16 23:58:50');
 
 -- --------------------------------------------------------
 
@@ -97,10 +108,7 @@ CREATE TABLE `auctions` (
 --
 
 INSERT INTO `auctions` (`id`, `property_id`, `starting_bid`, `current_bid`, `highest_bidder_id`, `start_time`, `end_time`, `status`, `review_status`, `review_feedback`, `reviewed_by`, `reviewed_at`, `created_at`) VALUES
-(2, 2, 4000000.00, 111111111.00, 6, '2026-11-03 01:35:44', '2026-11-05 01:35:44', 'ended', 'approved', NULL, NULL, NULL, '2026-11-02 17:35:44'),
-(3, 3, 1800000.00, 1800000.00, NULL, '2026-11-06 01:35:44', '2026-11-13 01:35:44', 'active', 'approved', NULL, NULL, NULL, '2026-11-02 17:35:44'),
-(4, 1, 3000000.00, 3500000.00, NULL, '2026-10-27 01:35:44', '2026-11-02 01:35:44', 'ended', 'approved', NULL, NULL, NULL, '2026-11-02 17:35:44'),
-(5, 11, 4500000.00, 4500000.00, NULL, '2026-11-17 00:00:00', '2026-11-24 23:59:59', 'active', 'approved', NULL, NULL, NULL, '2026-11-16 19:07:46'),
+(5, 11, 4500000.00, 5000000.00, 13, '2026-11-17 00:00:00', '2026-11-24 23:59:59', 'active', 'approved', NULL, NULL, NULL, '2026-11-16 19:07:46'),
 (6, 12, 3800000.00, 3800000.00, NULL, '2026-11-17 00:00:00', '2026-11-25 23:59:59', 'active', 'approved', NULL, NULL, NULL, '2026-11-16 19:07:46');
 
 -- --------------------------------------------------------
@@ -135,11 +143,18 @@ CREATE TABLE `bids` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- Dumping data for table `bids`
+--
+
+INSERT INTO `bids` (`id`, `property_id`, `user_id`, `bid_amount`, `status`, `created_at`) VALUES
+(3, 11, 13, 5000000.00, 'Pending', '2026-11-16 23:17:08');
+
+--
 -- Triggers `bids`
 --
 DELIMITER $$
 CREATE TRIGGER `homebid_after_bid_insert` AFTER INSERT ON `bids` FOR EACH ROW BEGIN
-    -- Alert buyers whose earlier bids are now lower than the newly placed bid.
+    -- Notify buyers whose earlier bids are lower than the newly placed bid.
     INSERT INTO notifications (user_id, title, message, related_entity, related_id)
     SELECT DISTINCT b.user_id,
            'You have been outbid',
@@ -153,9 +168,7 @@ CREATE TRIGGER `homebid_after_bid_insert` AFTER INSERT ON `bids` FOR EACH ROW BE
       AND b.bid_amount < NEW.bid_amount
       AND b.status IN ('Pending', 'Accepted');
 
-    -- Bid statuses are updated by property-view.php outside this trigger.
-
-    -- Alert the property owner about every newly recorded bid.
+    -- Notify the property owner about the new bid.
     INSERT INTO notifications (user_id, title, message, related_entity, related_id)
     SELECT p.user_id,
            'New bid on your property',
@@ -185,13 +198,6 @@ CREATE TABLE `bookings` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `bookings`
---
-
-INSERT INTO `bookings` (`id`, `property_id`, `user_id`, `visit_date`, `visit_time`, `status`, `created_at`) VALUES
-(1, 5, 6, '2026-11-04', '15:11:00', 'pending', '2026-11-02 19:11:11');
-
 -- --------------------------------------------------------
 
 --
@@ -213,6 +219,14 @@ CREATE TABLE `checkout_payments` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `checkout_payments`
+--
+
+INSERT INTO `checkout_payments` (`id`, `payment_type`, `reservation_id`, `auction_id`, `property_id`, `user_id`, `amount`, `external_id`, `invoice_id`, `invoice_url`, `status`, `created_at`, `updated_at`) VALUES
+(1, 'auction', NULL, 5, 12, 16, 2500000.00, 'HB-AUC-2026-0001', 'INV-SAMPLE-AUC-001', NULL, 'paid', '2026-11-16 23:22:12', '2026-11-16 23:22:12'),
+(2, 'reservation', 8, NULL, 15, 16, 5000.00, 'HB-RES-2026-0001', 'INV-SAMPLE-RES-001', NULL, 'paid', '2026-11-16 23:22:12', '2026-11-16 23:22:12');
 
 --
 -- Triggers `checkout_payments`
@@ -273,7 +287,8 @@ CREATE TABLE `notifications` (
 --
 
 INSERT INTO `notifications` (`id`, `user_id`, `title`, `message`, `is_read`, `related_entity`, `related_id`, `created_at`) VALUES
-(1, 16, 'Seller application Approved', 'Your seller application was approved. Sign in again to access Seller features.', 0, 'seller_application', 1, '2026-11-16 18:48:22');
+(1, 16, 'Seller application Approved', 'Your seller application was approved. Sign in again to access Seller features.', 0, 'seller_application', 1, '2026-11-16 18:48:22'),
+(2, 16, 'New bid on your property', 'A buyer placed a bid of ₱5,000,000.00 on Premium House and Lot Auction.', 0, 'property', 11, '2026-11-16 23:17:08');
 
 -- --------------------------------------------------------
 
@@ -359,14 +374,6 @@ CREATE TABLE `properties` (
 --
 
 INSERT INTO `properties` (`id`, `user_id`, `title`, `description`, `category`, `location`, `region`, `province`, `city`, `barangay`, `lot_number`, `lot_area`, `floor_area`, `price`, `status`, `image_path`, `is_featured`, `created_at`, `is_approved`, `review_status`, `review_feedback`, `reviewed_by`, `reviewed_at`, `submission_type`, `latitude`, `longitude`) VALUES
-(1, 13, 'Modern House and Lot', 'Test description for checkout', NULL, 'Manila, Philippines', NULL, NULL, NULL, NULL, NULL, 120.00, 85.00, 2500000.00, 'Available', 'assets/image/hero-house.jpg', 1, '2026-10-31 07:41:52', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
-(2, 13, 'Modern House and Lot', 'Test description for checkout', NULL, 'Manila, Philippines', NULL, NULL, NULL, NULL, NULL, 120.00, 85.00, 2500000.00, 'Available', 'assets/image/property-alabang.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
-(3, 13, 'Minimalist Townhouse', 'Spacious townhouse with modern finishes, open-concept kitchen, and secure garage.', NULL, 'Angeles City, Pampanga', NULL, NULL, NULL, NULL, NULL, 100.00, 90.00, 3200000.00, 'Available', 'assets/image/property-nuvali.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
-(4, 13, 'Luxury Subdivision Estate', 'High-end luxury property featuring a wide second-floor balcony, landscaped garden, and master suite.', NULL, 'Clark Freeport Zone', NULL, NULL, NULL, NULL, NULL, 200.00, 150.00, 7500000.00, 'Available', 'assets/image/why-house.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
-(5, 13, 'Affordable Family Duplex', 'Cozy and budget-friendly duplex designed for growing families close to schools and commercial centers.', NULL, 'San Fernando, Pampanga', NULL, NULL, NULL, NULL, NULL, 80.00, 65.00, 2100000.00, 'Available', 'assets/image/property-cebu.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
-(6, 13, 'Contemporary Single-Detached', 'Stunning single-detached house with high ceilings, large windows, and a two-car carport.', NULL, 'Tarlac City', NULL, NULL, NULL, NULL, NULL, 150.00, 110.00, 4800000.00, 'Available', 'assets/image/property-cebu.jpg', 1, '2026-11-02 14:06:50', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
-(7, 13, 'walang chismiss', 'safe kahit san magpunta people like to keep private', NULL, 'safe1234privacycamp', NULL, NULL, NULL, NULL, NULL, 456.99, 89765.00, 9999999999.99, 'Available', NULL, 0, '2026-11-16 07:57:01', 0, 'pending', NULL, NULL, NULL, 'listing', NULL, NULL),
-(8, 13, 'asdfasdf', 'ccst school', 'House and Lot', '123123, Samsonville, Mabalacat City, Pampanga, Region III (Central Luzon)', 'Region III (Central Luzon)', 'Pampanga', 'Mabalacat City', 'Samsonville', '123123', 123.20, 100.00, 5000000000.00, 'Available', 'assets/images/property_ca35796c8b60f03d3152698f.jpg', 0, '2026-11-16 13:51:23', 0, 'pending', NULL, NULL, NULL, 'listing', NULL, NULL),
 (9, 16, 'Modern Family House in Angeles City', 'A modern family home with spacious bedrooms, a functional kitchen, private parking, and convenient access to schools and commercial establishments.', 'House and Lot', 'Pulungbulu, Angeles City, Pampanga', 'Region III (Central Luzon)', 'Pampanga', 'Angeles City', 'Pulungbulu', 'Block 8 Lot 12', 120.00, 95.00, 3850000.00, 'Available', 'assets/image/hero-house.jpg', 0, '2026-11-16 19:07:46', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
 (10, 16, 'Affordable Townhouse in San Fernando', 'A comfortable townhouse suitable for a growing family, featuring a practical layout and convenient access to public transportation and nearby establishments.', 'House and Lot', 'San Fernando City, Pampanga', 'Region III (Central Luzon)', 'Pampanga', 'San Fernando', 'Dolores', 'Block 3 Lot 5', 90.00, 75.00, 2850000.00, 'Available', 'assets/image/property-alabang.jpg', 0, '2026-11-16 19:07:46', 1, 'approved', NULL, NULL, NULL, 'listing', NULL, NULL),
 (11, 16, 'Premium House and Lot Auction', 'A spacious residential property offered through auction, featuring a modern design and a peaceful neighborhood.', 'House and Lot', 'Clark Freeport Zone, Pampanga', 'Region III (Central Luzon)', 'Pampanga', 'Angeles City', 'Clark', 'Block 5 Lot 10', 180.00, 140.00, 4500000.00, 'Auction', 'assets/image/why-house.jpg', 0, '2026-11-16 19:07:46', 1, 'approved', NULL, NULL, NULL, 'auction', NULL, NULL),
@@ -385,13 +392,6 @@ CREATE TABLE `property_images` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `property_images`
---
-
-INSERT INTO `property_images` (`id`, `property_id`, `image_path`, `created_at`) VALUES
-(1, 8, 'assets/images/property_b9439043ad2e273d77d083d7.jpg', '2026-11-16 13:51:23');
-
 -- --------------------------------------------------------
 
 --
@@ -404,13 +404,6 @@ CREATE TABLE `property_tags` (
   `tag_name` varchar(40) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `property_tags`
---
-
-INSERT INTO `property_tags` (`id`, `property_id`, `tag_name`, `created_at`) VALUES
-(1, 8, 'furnished', '2026-11-16 13:51:23');
 
 -- --------------------------------------------------------
 
@@ -427,22 +420,6 @@ CREATE TABLE `reservations` (
   `status` enum('Pending','Approved','Cancelled','Completed') NOT NULL DEFAULT 'Pending',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `reservations`
---
-
-INSERT INTO `reservations` (`id`, `property_id`, `user_id`, `reservation_fee`, `proof_of_payment`, `status`, `created_at`) VALUES
-(2, 1, 1, 5000.00, NULL, 'Pending', '2026-10-31 07:42:04'),
-(3, 1, 1, 5000.00, NULL, 'Pending', '2026-10-31 07:42:18'),
-(4, 1, 1, 5000.00, NULL, 'Pending', '2026-10-31 07:42:20'),
-(5, 1, 1, 5000.00, NULL, 'Pending', '2026-10-31 07:42:22'),
-(6, 1, 1, 5000.00, NULL, 'Pending', '2026-10-31 07:43:14'),
-(7, 1, 1, 5000.00, NULL, 'Pending', '2026-10-31 07:45:57'),
-(8, 1, 1, 5000.00, NULL, 'Pending', '2026-10-31 07:47:42'),
-(9, 1, 1, 5000.00, NULL, 'Pending', '2026-10-31 07:51:43'),
-(10, 1, 1, 5000.00, NULL, 'Pending', '2026-10-31 07:54:14'),
-(11, 1, 1, 5000.00, NULL, 'Pending', '2026-10-31 10:22:55');
 
 -- --------------------------------------------------------
 
@@ -512,10 +489,11 @@ INSERT INTO `users` (`id`, `username`, `email`, `google_id`, `password`, `role`,
 (6, 'nreco', 'asdfadsf@gmail.com', NULL, '$2y$10$2OkkKhk/MO1W9us1f.pugeMTCb.EfB2IazpRvz5MVlmnftSn5Dnnu', 'Administrator', NULL, 0, '2026-11-02 16:55:43', NULL, NULL, NULL, NULL, 1, 1, 0),
 (7, 'qwe', 'qwe@gmail.com', NULL, 'qwe', 'Buyer', NULL, 0, '2026-11-02 17:21:57', NULL, NULL, NULL, NULL, 1, 1, 0),
 (9, 'brix sedillo', 'brixsedillo@gmail.com', '118305699041903171057', '$2y$10$s0Epu705gyrBJXm4.ZDXR.aZYbQX5YRyDjFhMAOWjMRXE6kFYewiW', 'Buyer', NULL, 1, '2026-11-03 21:45:13', 'Brix Angelo', 'Sedillo', '09486318794', '82, 8th st Lakandula', 1, 1, 0),
-(13, 'brixbuyer', 'brixbuyer@gmail.com', NULL, '$2y$10$N2nBVgDfTyB2RpFi5rKP3.BcZQazrVQLW3X/6uZRrP9epo3KfcxB6', 'Staff', NULL, 1, '2026-11-03 22:43:47', NULL, NULL, NULL, NULL, 1, 1, 0),
+(13, 'brixbuyer', 'brixbuyer@gmail.com', NULL, '$2y$10$N2nBVgDfTyB2RpFi5rKP3.BcZQazrVQLW3X/6uZRrP9epo3KfcxB6', 'Buyer', NULL, 1, '2026-11-03 22:43:47', NULL, NULL, NULL, NULL, 1, 1, 0),
 (14, 'brixadmin', 'brixadmin@gmail.com', NULL, '$2y$10$gLyJYcX4UftxmosjdqJW3OnOWMrgQejD25huzSOk0VwOSyS60hnqi', 'Administrator', '', 1, '2026-11-03 22:43:47', NULL, NULL, NULL, NULL, 1, 1, 0),
 (15, 'Brixangelo Sedillo', 'sbrixangelo@gmail.com', '105516443382730612843', '', 'Buyer', NULL, 1, '2026-11-08 20:28:40', NULL, NULL, NULL, NULL, 1, 1, 0),
-(16, 'janjan', 'lorenxz09@gmail.com', '103742249210865975607', '$2y$10$Iu6s7rcZp6HQjMt7aG5KXeXzUKF5FH/OsPDykKfj2zxZniSQ.Hb3O', 'Client', NULL, 1, '2026-11-16 11:11:43', 'Brix Angelo', 'Sedillo', '', '82, 8th st Lakandula', 1, 1, 0);
+(16, 'janjan', 'lorenxz09@gmail.com', '103742249210865975607', '$2y$10$Iu6s7rcZp6HQjMt7aG5KXeXzUKF5FH/OsPDykKfj2zxZniSQ.Hb3O', 'Client', NULL, 1, '2026-11-16 11:11:43', 'Brix Angelo', 'Sedillo', '', '82, 8th st Lakandula', 1, 1, 0),
+(17, 'jan', 'jan@gmail.com', NULL, '$2y$10$sK6eR8Qwf.i5izv24d2kVuLjXHYv1CQPeJgHW/lT5itDdcqXNSIhG', 'Buyer', NULL, 1, '2026-11-16 21:58:51', NULL, NULL, NULL, NULL, 1, 1, 0);
 
 -- --------------------------------------------------------
 
@@ -682,7 +660,7 @@ ALTER TABLE `viewing_bookings`
 -- AUTO_INCREMENT for table `activity_logs`
 --
 ALTER TABLE `activity_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
 
 --
 -- AUTO_INCREMENT for table `auctions`
@@ -700,7 +678,7 @@ ALTER TABLE `auction_results`
 -- AUTO_INCREMENT for table `bids`
 --
 ALTER TABLE `bids`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `bookings`
@@ -712,7 +690,7 @@ ALTER TABLE `bookings`
 -- AUTO_INCREMENT for table `checkout_payments`
 --
 ALTER TABLE `checkout_payments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `inquiries`
@@ -724,7 +702,7 @@ ALTER TABLE `inquiries`
 -- AUTO_INCREMENT for table `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `password_change_requests`
@@ -772,7 +750,7 @@ ALTER TABLE `seller_applications`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT for table `viewing_bookings`
