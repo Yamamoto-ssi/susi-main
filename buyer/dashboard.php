@@ -3,6 +3,9 @@ declare(strict_types=1);
 require_once __DIR__.'/../config/auth.php';
 $userId=require_roles(['Buyer']);
 require_once __DIR__.'/../config/db.php';
+$manualPaymentConfigPath=__DIR__.'/../config/manual-payment.local.php';
+$manualPaymentConfig=is_file($manualPaymentConfigPath)?require $manualPaymentConfigPath:[];
+if(!is_array($manualPaymentConfig))$manualPaymentConfig=[];
 //aasafsadfsadf
 function bh($v):string{return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
 function buyer_money($v):string{return '₱'.number_format((float)$v,2);}
@@ -76,6 +79,7 @@ $stats=buyer_one($conn,"SELECT
  (SELECT COALESCE(MAX(bid_amount),0) FROM bids WHERE user_id=?) highest_bid",[$userId,$userId]);
 $myBids=buyer_rows($conn,"SELECT b.id,b.bid_amount,b.status bid_status,b.created_at,p.title,p.location,a.id auction_id,a.highest_bidder_id,a.status auction_status,a.current_bid,a.end_time,p.image_path,
   EXISTS(SELECT 1 FROM checkout_payments cp WHERE cp.auction_id=a.id AND cp.user_id=b.user_id AND cp.status='paid') AS auction_paid,
+  EXISTS(SELECT 1 FROM checkout_payments cp WHERE cp.auction_id=a.id AND cp.user_id=b.user_id AND cp.status='pending') AS auction_pending,
   (SELECT cp.id FROM checkout_payments cp WHERE cp.auction_id=a.id AND cp.user_id=b.user_id AND cp.status='paid' ORDER BY cp.id DESC LIMIT 1) AS auction_payment_id
   FROM bids b JOIN properties p ON p.id=b.property_id
   LEFT JOIN auctions a ON a.id=(SELECT a2.id FROM auctions a2 WHERE a2.property_id=p.id ORDER BY a2.id DESC LIMIT 1)
@@ -307,9 +311,12 @@ $tabTitles=['home'=>'Discover properties','browse'=>'Browse properties','my-bids
                                 <td><?=buyer_badge($b['auction_status']??'unknown')?></td>
                                 <td><?=date('M j, Y g:i a',strtotime($b['created_at']))?></td>
                                 <td><?=buyer_badge($b['bid_status'])?></td>
-                                <td><?php if ((int)($b['highest_bidder_id'] ?? 0) === $userId && empty($b['auction_paid']) && !empty($b['auction_id']) && (strtolower((string)$b['auction_status']) === 'ended' || (!empty($b['end_time']) && strtotime($b['end_time']) <= time()))): ?>
+                                <td><?php if (!empty($b['auction_paid'])): ?><span class="status green">Paid</span> <a class="btn gold" target="_blank" rel="noopener" href="../receipt/auction-receipt.php?payment_id=<?=(int)$b['auction_payment_id']?>">View receipt</a>
+                                    <?php elseif (!empty($b['auction_pending'])): ?><span class="status amber">Payment under review</span>
+                                    <?php elseif ((int)($b['highest_bidder_id'] ?? 0) === $userId && !empty($b['auction_id']) && (strtolower((string)$b['auction_status']) === 'ended' || (!empty($b['end_time']) && strtotime($b['end_time']) <= time()))): ?>
+                                    <small>GCash: <?=bh($manualPaymentConfig['gcash_name']??'Ask staff for account name')?> · <?=bh($manualPaymentConfig['gcash_number']??'Not configured')?><br>Bank: <?=bh($manualPaymentConfig['bank_name']??'Ask staff for bank details')?> · <?=bh($manualPaymentConfig['bank_account_number']??'')?></small>
                                     <form method="post" action="../checkout.php" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="<?=bh(csrf_token())?>"><input type="hidden" name="payment_type" value="auction"><input type="hidden" name="auction_id" value="<?=(int)$b['auction_id']?>"><label>Method <select name="payment_method" required><option value="GCash">GCash</option><option value="Bank transfer">Bank transfer</option></select></label><label>Proof <input type="file" name="payment_proof" accept=".jpg,.jpeg,.png,.webp,.pdf" required></label><button class="btn gold" type="submit">Submit payment proof</button></form>
-                                    <?php elseif (!empty($b['auction_paid'])): ?><span class="status green">Paid</span> <a class="btn gold" target="_blank" rel="noopener" href="../receipt/auction-receipt.php?payment_id=<?=(int)$b['auction_payment_id']?>">View receipt</a><?php else: ?><span class="muted">—</span><?php endif; ?></td>
+                                    <?php else: ?><span class="muted">—</span><?php endif; ?></td>
                             </tr><?php endforeach;?></tbody>
                     </table>
                 </div><?php endif;?>
