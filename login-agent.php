@@ -32,10 +32,13 @@ try {
     }
 
     if ($action === 'signup') {
-        $name = trim((string)($_POST['name'] ?? ''));
+        $firstName = trim((string)($_POST['first_name'] ?? ''));
+        $lastName = trim((string)($_POST['last_name'] ?? ''));
+        $phoneNumber = trim((string)($_POST['phone_number'] ?? ''));
         $username = trim((string)($_POST['username'] ?? ''));
         $role = 'Buyer';
-        if ($name === '') respond(422,['ok'=>false,'message'=>'Please enter your full name.']);
+        if ($firstName === '' || $lastName === '') respond(422,['ok'=>false,'message'=>'Please enter your first name and last name.']);
+        if (!preg_match('/^\\+?[0-9][0-9\\s().-]{6,18}$/', $phoneNumber)) respond(422,['ok'=>false,'message'=>'Please enter a valid phone number.']);
         if (!preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
             respond(422,['ok'=>false,'message'=>'Username must be 3–50 characters and use only letters, numbers, dots, underscores, or hyphens.']);
         }
@@ -45,8 +48,8 @@ try {
         $check = hb_fetch_one(hb_query($conn, 'SELECT id FROM users WHERE email=? OR username=? LIMIT 1', [$email,$username]));
         if ($check) respond(409,['ok'=>false,'message'=>'That email address or username is already registered.']);
 
-        hb_query($conn, 'INSERT INTO users (username,email,password,role,is_verified) VALUES (?,?,?,?,1)',
-            [$username,$email,password_hash($password,PASSWORD_DEFAULT),$role]);
+        hb_query($conn, 'INSERT INTO users (username,email,password,role,is_verified,first_name,last_name,phone_number) VALUES (?,?,?,?,1,?,?,?)',
+            [$username,$email,password_hash($password,PASSWORD_DEFAULT),$role,$firstName,$lastName,$phoneNumber]);
         $userId = (int)mysqli_insert_id($conn);
         hb_query($conn, 'INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)', [$userId,'Created a buyer account','user',$userId,$_SERVER['REMOTE_ADDR']??null]);
         session_regenerate_id(true);
