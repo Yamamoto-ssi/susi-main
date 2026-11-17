@@ -148,7 +148,7 @@ if (!isset($_SESSION['csrf_token']) || !is_string($csrfToken) || !hash_equals($_
     showCheckoutError('Your session expired. Go back and submit checkout again.', 403);
 }
 
-$secretKey = getenv('XENDIT_SECRET_KEY');
+$secretKey = getenv('xnd_development_iEGdKebZsYZDzYhBSauDoeaqz9EheTYZAbkEP7dAsX3IF0AYE2PzBMhnXPT4vw');
 if ($secretKey === false || trim($secretKey) === '') {
     error_log('Checkout unavailable: XENDIT_SECRET_KEY is not configured.');
     showCheckoutError('Online payment is not configured yet. Please contact the site administrator.', 503);
