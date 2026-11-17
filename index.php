@@ -66,7 +66,7 @@ function homebid_money($amount): string {
     <link
         href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=minimal-20261117">
+    <link rel="stylesheet" href="style.css?v=homepage-polish-20261117">
 </head>
 
 <body>
@@ -81,6 +81,7 @@ function homebid_money($amount): string {
                 <a href="#how-it-works">How It Works</a>
                 <a href="#about">About Us</a>
                 <a href="#contact">Contact</a>
+                <a class="mobile-staff-link" href="staff-login.php">Staff Login</a>
             </nav>
             <div class="nav-actions">
                 <button class="btn btn-gold btn-small" data-modal="signup">Sign Up</button>
