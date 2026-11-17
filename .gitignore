@@ -4,3 +4,5 @@
 /uploads/private/*
 !/uploads/private/.htaccess
 /config/xendit.local.php
+
+/config/manual-payment.local.php
