@@ -127,7 +127,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos(strtolower($_SERVER['CONTENT
                 } else {
                     $reservationUpdate = $conn->prepare("UPDATE reservations SET status = 'Cancelled' WHERE id = ? AND status = 'Pending'");
                 }
-nullable reservation update
+                if ($reservationUpdate instanceof mysqli_stmt) {
+                    $reservationUpdate->bind_param('i', $payment['reservation_id']);
+                    $reservationUpdate->execute();
+                    $reservationUpdate->close();
+                }
             }
         }
 
