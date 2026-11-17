@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__.'/../config/auth.php';
 $adminId=require_roles(['Administrator']);
 require_once __DIR__.'/../config/db.php';
-$page=$_GET['page']??'dashboard';$allowed=['dashboard','sellers','properties','auctions','activity','audit','notifications','staff','reports','settings'];if(!in_array($page,$allowed,true))$page='dashboard';
+$page=$_GET['page']??'dashboard';$allowed=['dashboard','sellers','seller-applications','properties','auctions','activity','audit','notifications','staff','reports','settings'];if(!in_array($page,$allowed,true))$page='dashboard';
 $name=(string)($_SESSION['username']??'Administrator');$initials=strtoupper(substr(preg_replace('/[^a-z]/i','',$name)?:'AD',0,2));$notice='';$error='';$q=trim((string)($_GET['q']??''));
 function ah($v):string{return htmlspecialchars((string)($v??''),ENT_QUOTES,'UTF-8');}
 function money($v):string{return '₱'.number_format((float)$v,2);}
@@ -25,8 +25,8 @@ elseif($act==='change_role'&&$id){$v=$_POST['role']??'';if(!in_array($v,['Admini
 else throw new RuntimeException('Action not available.');
 }catch(Throwable $e){$error=$e instanceof mysqli_sql_exception?'Database action failed. Check the account details and database constraints.':'Database operation failed';error_log('Admin dashboard: '.'Database operation failed');}}
 $st=one($conn,"SELECT (SELECT COUNT(*) FROM users) users,(SELECT COUNT(*) FROM users WHERE role='Client') sellers,(SELECT COUNT(*) FROM users WHERE role='Buyer') buyers,(SELECT COUNT(*) FROM properties) properties,(SELECT COUNT(*) FROM properties WHERE is_approved=0) pending,(SELECT COUNT(*) FROM properties WHERE is_approved=1) approved,(SELECT COUNT(*) FROM auctions WHERE status='active') active,(SELECT COUNT(*) FROM auctions WHERE status='ended') ended,(SELECT COUNT(*) FROM bids) bids");
-$paid=one($conn,"SELECT COALESCE(SUM(amount),0) total FROM checkout_payments WHERE status='paid'");$pendingS=(int)(one($conn,"SELECT COUNT(*) n FROM users WHERE role='Client' AND is_verified=0")['n']??0);$tasks=$pendingS+(int)$st['pending']+(int)(one($conn,"SELECT COUNT(*) n FROM reservations WHERE status='Pending'")['n']??0);
-$titles=['dashboard'=>'Overview','sellers'=>'Seller accounts','properties'=>'Property approvals','auctions'=>'Auction management','activity'=>'Bidding activity','audit'=>'Audit log','notifications'=>'Notifications','staff'=>'Staff & roles','reports'=>'Reports','settings'=>'System settings'];$nav=[['dashboard','grid','Overview',''],['sellers','users','Seller accounts',$pendingS],['properties','home','Property approvals',(int)$st['pending']],['auctions','gavel','Auction management',(int)$st['active']],['activity','chart','Bidding activity',''],['notifications','bell','Notifications','']];
+$paid=one($conn,"SELECT COALESCE(SUM(amount),0) total FROM checkout_payments WHERE status='paid'");$pendingS=(int)(one($conn,"SELECT COUNT(*) n FROM users WHERE role='Client' AND is_verified=0")['n']??0);$pendingSellerApplications=(int)(one($conn,"SELECT COUNT(*) n FROM seller_applications WHERE status='pending'")['n']??0);$tasks=$pendingS+$pendingSellerApplications+(int)$st['pending']+(int)(one($conn,"SELECT COUNT(*) n FROM reservations WHERE status='Pending'")['n']??0);
+$titles=['dashboard'=>'Overview','sellers'=>'Seller accounts','seller-applications'=>'Seller applications','properties'=>'Property approvals','auctions'=>'Auction management','activity'=>'Bidding activity','audit'=>'Audit log','notifications'=>'Notifications','staff'=>'Staff & roles','reports'=>'Reports','settings'=>'System settings'];$nav=[['dashboard','grid','Overview',''],['sellers','users','Seller accounts',$pendingS],['seller-applications','users','Seller applications',$pendingSellerApplications],['properties','home','Property approvals',(int)$st['pending']],['auctions','gavel','Auction management',(int)$st['active']],['activity','chart','Bidding activity',''],['notifications','bell','Notifications','']];
 ?>
 <!doctype html>
 <html lang="en">
@@ -125,7 +125,7 @@ $titles=['dashboard'=>'Overview','sellers'=>'Seller accounts','properties'=>'Pro
                         </div><?=pill($tasks.' open')?>
                     </div>
                     <div class="task-list">
-                        <?php foreach([['Seller verifications',$pendingS.' applications','users','sellers'],['Property approvals',$st['pending'].' awaiting review','home','properties'],['Auction monitoring',$st['active'].' currently active','gavel','auctions'],['Customer requests','Reservations, viewings and inquiries','bell','notifications']] as [$l,$sub,$ic,$to]):?><a
+                        <?php foreach([['Seller applications',$pendingSellerApplications.' awaiting review','users','seller-applications'],['Seller account verifications',$pendingS.' accounts','users','sellers'],['Property approvals',$st['pending'].' awaiting review','home','properties'],['Auction monitoring',$st['active'].' currently active','gavel','auctions'],['Customer requests','Reservations, viewings and inquiries','bell','notifications']] as [$l,$sub,$ic,$to]):?><a
                             class="task" href="?page=<?=$to?>"><span
                                 class="task-icon"><?=ico($ic)?></span><span><b><?=ah($l)?></b><small><?=ah($sub)?></small></span><?=ico('arrow',15)?></a><?php endforeach;?>
                     </div>
