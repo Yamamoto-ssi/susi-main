@@ -8,7 +8,6 @@ function payment_page(string $title, string $message, string $tone = 'info'): vo
  $color=$tone==='success'?'#18794e':($tone==='error'?'#b42318':'#475467');
  echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'.payment_h($title).' | HomeBid</title><style>body{font-family:Arial,sans-serif;background:#f5f7f8;color:#17212b;margin:0;padding:24px}.card{max-width:680px;margin:7vh auto;background:#fff;border:1px solid #e1e7ea;border-radius:14px;padding:28px}h1{font-size:24px}p{line-height:1.65;color:'.$color.'}a{display:inline-block;margin:8px 8px 0 0;padding:11px 15px;border-radius:8px;background:#173e36;color:white;text-decoration:none;font-weight:700}</style></head><body><main class="card"><h1>'.payment_h($title).'</h1><p>'.payment_h($message).'</p><a href="buyer/dashboard.php?tab=my-bids">My bidding activity</a><a href="buyer/dashboard.php?tab=activity">Payment history</a></main></body></html>';exit;
 }
-<<<<<<< HEAD
 
 function getApplicationBaseUrl(): string
 {
@@ -373,7 +372,7 @@ try {
 
 header('Location: ' . $invoiceUrl);
 exit;
-=======
+
 if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);payment_page('Payment request required','Start payment from a property page or your bidding activity.','error');}
 verify_csrf();
 $paymentType=(string)($_POST['payment_type']??'');
@@ -412,4 +411,3 @@ try{
 }catch(Throwable $e){try{$conn->rollback();}catch(Throwable $ignored){}if($relativePath&&is_file(__DIR__.'/'.$relativePath))@unlink(__DIR__.'/'.$relativePath);error_log('HomeBid manual payment submission: '.$e->getMessage());payment_page('Payment was not submitted',$e instanceof RuntimeException?$e->getMessage():'A database error occurred. Please contact HomeBid support.','error');}
 try{$title=$paymentType==='auction'?'Auction payment proof submitted':'Reservation payment proof submitted';$message='Your proof of payment is awaiting Staff/Admin verification. Do not send another payment while this submission is pending.';$entity='payment';$stmt=$conn->prepare("INSERT INTO notifications(user_id,title,message,related_entity,related_id) VALUES(?,?,?,?,?)");$stmt->bind_param('ssssi',$userId,$title,$message,$entity,$paymentId);$stmt->execute();$stmt->close();}catch(Throwable $ignored){}
 payment_page('Proof submitted successfully','Your payment of ₱'.number_format($amount,2).' has been submitted for verification. Your receipt will become available only after Staff/Admin approves the payment.','success');
->>>>>>> 246f9fe58b2a97ecddd4557d0efeef99a6bcfd5c
