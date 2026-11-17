@@ -271,8 +271,9 @@ function homebid_money($amount): string {
             <h2 id="modalTitle">Create your account</h2>
             <p class="muted" id="modalDescription">Join HomeBid and discover your next home.</p>
             <form id="accountForm" novalidate>
-                <label id="nameField" hidden>Full name<input type="text" name="name" placeholder="Your full name"
-                        autocomplete="name"></label>
+                <label id="firstNameField" hidden>First name<input type="text" name="first_name" maxlength="80" placeholder="First name" autocomplete="given-name"></label>
+                <label id="lastNameField" hidden>Last name<input type="text" name="last_name" maxlength="80" placeholder="Last name" autocomplete="family-name"></label>
+                <label id="phoneField" hidden>Phone number<input type="tel" name="phone_number" maxlength="20" placeholder="+63 9XX XXX XXXX" autocomplete="tel"></label>
                 <label id="usernameField" hidden>Username<input type="text" name="username" maxlength="50" placeholder="Choose a username"
                         autocomplete="username"></label>
                 <label id="loginIdentifierLabel">Email address<input type="text" name="email" placeholder="you@example.com" autocomplete="username"

@@ -26,10 +26,17 @@ $role = 'Buyer';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $username = trim((string)($_POST['username'] ?? ''));
+    $firstName = trim((string)($_POST['first_name'] ?? ''));
+    $lastName = trim((string)($_POST['last_name'] ?? ''));
+    $phoneNumber = trim((string)($_POST['phone_number'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
     $role = 'Buyer';
 
-    if (!preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
+    if ($firstName === '' || $lastName === '') {
+        $error = 'Please enter your first name and last name.';
+    } elseif (!preg_match('/^\\+?[0-9][0-9\\s().-]{6,18}$/', $phoneNumber)) {
+        $error = 'Please enter a valid phone number.';
+    } elseif (!preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
         $error = 'Username must be 3–50 characters and use only letters, numbers, dots, underscores, or hyphens.';
     } elseif (strlen($password) < 8) {
         $error = 'Your password must be at least 8 characters long.';
@@ -77,8 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
                     hb_query($conn,
-                        'INSERT INTO users (username, email, google_id, password, role, is_verified) VALUES (?, ?, ?, ?, ?, 1)',
-                        [$username, (string)$googleRegistration['email'], (string)$googleRegistration['google_id'], $hashedPassword, $role]
+                        'INSERT INTO users (username, email, google_id, password, role, is_verified, first_name, last_name, phone_number) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)',
+                        [$username, (string)$googleRegistration['email'], (string)$googleRegistration['google_id'], $hashedPassword, $role, $firstName, $lastName, $phoneNumber]
                     );
                     $userId = (int)mysqli_insert_id($conn);
                     hb_query($conn, 'INSERT INTO activity_logs (user_id,action,entity_type,record_id,ip_address) VALUES (?,?,?,?,?)', [$userId,'Created an account with Google','user',$userId,$_SERVER['REMOTE_ADDR']??null]);
